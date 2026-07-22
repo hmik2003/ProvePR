@@ -24,8 +24,8 @@ Every sprint ships a **working increment**.
 | 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
 | 5 | Post PR comment + Slack personal DM (or stub) |
 | 6 | HTTP trigger endpoint (`serve`) |
-| **7 (current)** | GitHub Action on PR → `staging` |
-| 8 | Cloud Run deploy |
+| 7 | GitHub Action on PR → `staging` |
+| **8 (next)** | Cloud Run deploy |
 | 9 | First company pilot handoff |
 
 ---

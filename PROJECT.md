@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 7 in progress — GitHub Action on PR → staging  
+**Status:** Sprint 7 complete — GitHub Action reviews PRs to `staging`; ready for Sprint 8 (Cloud Run)  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -148,8 +148,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **3 / Sprint 4** | Local AI review (single-shot Gemini; Hermes loop later) | No (key + $5 from supervisor) | **Done** |
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | **Done** |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | **Done** |
-| **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **In progress** |
-| **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Pending |
+| **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **Done** |
+| **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Next |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
 
 ---
@@ -258,3 +258,4 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Sprint 5b | Slack decision: **personal DM only** via bot token + user id |
 | 2026-07-22 | Sprint 6 | `python -m provepr serve` → GET /health, POST /v1/review (Bearer secret) |
 | 2026-07-22 | Sprint 7 | Workflow `provepr-review.yml` on PR → `staging`; Jira key extract + CI review |
+| 2026-07-22 | Sprint 7 | Live OK: Action on PR #2 → https://github.com/hmik2003/ProvePR/actions/runs/29907188075 |
