@@ -4,7 +4,7 @@
 
 **Goal:** Deliver a runnable local project that validates environment setup without needing live API keys yet.
 
-**Architecture:** Small Python package `spatial_ai_reviewer` with a `smoke` CLI. Secrets stay in `.env` (gitignored). `PROJECT.md` remains the living product context.
+**Architecture:** Small Python package `tickettrace` with a `smoke` CLI. Secrets stay in `.env` (gitignored). `PROJECT.md` remains the living product context.
 
 **Tech Stack:** Python 3.11+, `python-dotenv`, `pytest`
 
@@ -12,7 +12,8 @@
 
 - Never commit `.env` or real secrets
 - Hermes + Gemini locked for later sprints; Sprint 1 does not install Hermes yet
-- Personal GitHub (`hmik2003`) first; org SpatialSense later
+- Personal GitHub (`hmik2003`) first; company pilots later
+- Product name is **TicketTrace** (not tied to a single company app)
 - One working product increment per sprint
 
 ---
@@ -21,15 +22,16 @@
 
 **Files:**
 - Create: `.gitignore`, `.env.example`, `requirements.txt`, `README.md`
-- Create: `src/spatial_ai_reviewer/__init__.py`, `__main__.py`, `config.py`, `smoke.py`
+- Create: `src/tickettrace/__init__.py`, `__main__.py`, `config.py`, `smoke.py`
 - Create: `tests/test_config.py`
 - Modify: `PROJECT.md` (phase status)
 
 - [x] **Step 1:** Add ignore rules, env template, requirements
 - [x] **Step 2:** Implement config loader (presence checks only; never print secret values)
-- [x] **Step 3:** Implement `python -m spatial_ai_reviewer smoke`
+- [x] **Step 3:** Implement `python -m tickettrace smoke`
 - [x] **Step 4:** Add pytest for config key listing
 - [x] **Step 5:** Create venv, install deps, run smoke + tests
 - [x] **Step 6:** Commit Sprint 1
+- [x] **Step 7:** Rename product to TicketTrace (`tickettrace` package + folder)
 
 **Done when:** `smoke` exits successfully and prints a clear “Sprint 1 OK” plus next-key checklist.

@@ -1,17 +1,17 @@
-"""CLI entry: python -m spatial_ai_reviewer <command>"""
+"""CLI entry: python -m tickettrace <command>"""
 
 from __future__ import annotations
 
 import argparse
 import sys
 
-from spatial_ai_reviewer.smoke import run_smoke
+from tickettrace.smoke import run_smoke
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="spatial_ai_reviewer",
-        description="AI PR reviewer (Hermes + Gemini) — local tooling",
+        prog="tickettrace",
+        description="TicketTrace — AI PR reviewer (Hermes + Gemini)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

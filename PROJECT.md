@@ -1,16 +1,19 @@
-# SpatialSense AI PR Reviewer — Project Context
+# TicketTrace — Project Context
 
 > Living document. Update at the end of every phase. No stale or missing decisions.
 
+**Product name:** TicketTrace  
+**Repo folder:** `TicketTrace` (formerly `Staging-AI`)  
+**Python package:** `tickettrace`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 1 (Phase 0) complete — ready for Sprint 2 keys  
+**Status:** Sprint 1 complete (renamed) — ready for Sprint 2 keys  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
 
 ## 1. Goal
 
-Build an AI pipeline that, when a PR is opened/updated toward **staging**:
+Build a **portable** AI pipeline that, when a PR is opened/updated toward **staging** (or a configured base branch):
 
 1. Finds the matching **Jira** ticket (from PR title → branch → body)
 2. Reads the ticket PRD / requirements (**read-only**)
@@ -19,7 +22,7 @@ Build an AI pipeline that, when a PR is opened/updated toward **staging**:
 5. Posts a review **comment on the GitHub PR**
 6. Notifies the team on **Slack**
 
-Prove everything first on personal GitHub (`hmik2003`), then port to SpatialSense + org GCP.
+Prove everything first on personal GitHub (`hmik2003`). Company boards/repos (e.g. a SpatialSense pilot) are **customers of TicketTrace**, not the product identity.
 
 ### Agent count (plain English)
 
@@ -80,6 +83,7 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 
 | Decision | Choice | Notes |
 |----------|--------|-------|
+| Product name | **TicketTrace** | Portfolio-ready; not tied to one company product |
 | Trigger | GitHub Action on PR → `staging` | Not Jira status transitions (humans forget) |
 | Agent runtime | **Nous Research Hermes Agent** | Supervisor: “Hermes is the way forward” |
 | LLM provider | **Google Gemini** (AI Studio API key) | Supervisor: “Gemini ki key laga” |
@@ -87,10 +91,10 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 | Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not the `/openai` compatibility URL |
 | Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Hermes accepts either |
 | Initial candidate models | Pro-class for PR reviews; Flash for later cost tuning | Exact ID picked after `hermes model` / AI Studio availability |
-| Framework | Hermes first; **no LangChain** unless we hit a hard limit | Avoid Gemini-chat over-engineering |
-| Hosting (later) | Google **Cloud Run** | Supervisor path; needs org GCP access |
-| GitHub (dev) | Personal account **hmik2003** | Org SpatialSense later |
-| Jira | Org Jira, **read-only** | Never write/update tickets in early phases |
+| Framework | Hermes first; **no LangChain** unless we hit a hard limit | Avoid over-engineering |
+| Hosting (later) | Google **Cloud Run** | Needs GCP access (org or personal) |
+| GitHub (dev) | Personal account **hmik2003** | Any org repo can be a later pilot |
+| Jira | Configurable server; **read-only** in early phases | Works with any Jira Cloud board you can read |
 | Secrets | Local `.env` only; never commit; never bake into Docker image | Cloud Run = env vars / Secret Manager |
 
 ---
@@ -124,10 +128,10 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 
 | Item | Example |
 |------|---------|
-| Jira key | `SENSE-105` (use real project key when known) |
+| Jira key | `PROJ-105` (any project key) |
 | Jira summary | Add password reset button to the login screen |
-| PR title | `SENSE-105: Add password reset button to the login screen` |
-| Branch | `feature/SENSE-105-password-reset` |
+| PR title | `PROJ-105: Add password reset button to the login screen` |
+| Branch | `feature/PROJ-105-password-reset` |
 
 If no Jira ID is found, the Action skips the review (safe failure).
 
@@ -144,8 +148,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Pending |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | Pending |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Pending |
-| **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes — GCP project/IAM** | Pending |
-| **8 / Sprint 9** | Port to SpatialSense + org Slack | **Yes — repo admin + team buy-in** | Pending |
+| **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Pending |
+| **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
 
 ---
 
@@ -153,12 +157,12 @@ If no Jira ID is found, the Action skips the review (safe failure).
 
 | Secret | Who | When |
 |--------|-----|------|
-| GitHub PAT (personal) | You | Phase 1 |
-| Jira email + API token (read) | You | Phase 1 |
-| `GOOGLE_API_KEY` / `GEMINI_API_KEY` | You (AI Studio) | Phase 3 |
-| Slack webhook / bot | You or Slack admin | Phase 4 |
-| GCP project + deploy rights | Supervisor | Phase 7 |
-| SpatialSense repo secrets + workflow rights | Supervisor / repo admin | Phase 8 |
+| GitHub PAT (personal) | You | Sprint 2 |
+| Jira email + API token (read) | You | Sprint 2 |
+| `GOOGLE_API_KEY` / `GEMINI_API_KEY` | You (AI Studio) | Sprint 4 |
+| Slack webhook / bot | You or Slack admin | Sprint 5 |
+| GCP project + deploy rights | You and/or supervisor | Sprint 8 |
+| Pilot repo secrets + workflow rights | Repo admin | Sprint 9 |
 
 ---
 
@@ -180,7 +184,7 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | Maintainable as a custom app now? | **Poor** — UI + auth + DB + hosting + sync with GitHub = ongoing cost for an SQA-led first ship |
 
 **v1 monitoring (no custom UI):** GitHub PR comments + Actions history + Slack alerts.  
-**Optional Phase 9+:** lightweight history API / simple dashboard **only if** we already persist each run (PR, Jira ID, verdict, comment URL, timestamp). Until then, GitHub/Slack *are* the dashboard.
+**Optional later:** lightweight history API / simple dashboard **only if** we already persist each run (PR, Jira ID, verdict, comment URL, timestamp). Until then, GitHub/Slack *are* the dashboard.
 
 ---
 
@@ -189,18 +193,18 @@ If no Jira ID is found, the Action skips the review (safe failure).
 - Implement **one phase at a time**; commit after each phase
 - Keep this file accurate after every phase (status + decisions)
 - Lead QA owns quality criteria and acceptance; Lead SE owns implementation
-- Test on personal GitHub before touching SpatialSense
+- Test on personal GitHub before any company pilot
 
 ---
 
 ## 9. Open items
 
 - [ ] Exact Gemini model ID after first `hermes model` / AI Studio check
-- [ ] Real Jira project key (e.g. `SENSE` or other)
-- [ ] Personal test repo name under `hmik2003` (create in Phase 0/1)
+- [ ] Real Jira project key for first pilot board
+- [ ] Personal test repo under `hmik2003` (suggested: `TicketTrace` or `tickettrace-demo`)
 - [ ] Where PRD text lives in Jira (description vs custom field / AC)
 - [ ] Company Slack vs personal Slack for early tests
-- [ ] Revisit custom dashboard after Phase 8 (only if GitHub+Slack monitoring is not enough)
+- [ ] Revisit custom dashboard after first pilot (only if GitHub+Slack monitoring is not enough)
 
 ---
 
@@ -210,4 +214,5 @@ If no Jira ID is found, the Action skips the review (safe failure).
 |------|-------|-------|
 | 2026-07-22 | Design | Locked Hermes Agent + Gemini; GitHub trigger; personal-first rollout |
 | 2026-07-22 | Design | Dashboard deferred to post-v1; use GitHub + Slack as monitor |
-| 2026-07-22 | Sprint 1 | Scaffold + `python -m spatial_ai_reviewer smoke`; tests pass |
+| 2026-07-22 | Sprint 1 | Scaffold + smoke CLI; tests pass |
+| 2026-07-22 | Rename | Product/package/folder → **TicketTrace** / `tickettrace` |

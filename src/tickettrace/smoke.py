@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import sys
 
-from spatial_ai_reviewer import __version__
-from spatial_ai_reviewer.config import (
+from tickettrace import __version__
+from tickettrace.config import (
     SPRINT2_KEYS,
     SPRINT3_KEYS,
     SPRINT4_KEYS,
@@ -27,7 +27,7 @@ def run_smoke() -> int:
     root = project_root()
     env_path = load_env()
 
-    print("=== Spatial AI Reviewer — Sprint 1 Smoke ===")
+    print("=== TicketTrace — Sprint 1 Smoke ===")
     print(f"Package version : {__version__}")
     print(f"Project root    : {root}")
     print(f"Python          : {sys.version.split()[0]}")
