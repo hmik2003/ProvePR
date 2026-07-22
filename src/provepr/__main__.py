@@ -6,6 +6,7 @@ import argparse
 
 from provepr.connect import run_connect
 from provepr.fetch import run_fetch
+from provepr.review import run_review
 from provepr.smoke import run_smoke
 
 
@@ -41,6 +42,19 @@ def main(argv: list[str] | None = None) -> int:
     fetch_parser.add_argument("--pr", type=int, help="PR number (or GITHUB_TEST_PR_NUMBER)")
     fetch_parser.add_argument("--ticket", help="Jira key (or JIRA_TEST_TICKET)")
 
+    review_parser = sub.add_parser(
+        "review",
+        help="Sprint 4: single-shot Gemini PRD-vs-diff review (cost-guarded)",
+    )
+    review_parser.add_argument("--repo", help="owner/name (or GITHUB_TEST_REPO)")
+    review_parser.add_argument("--pr", type=int, help="PR number (or GITHUB_TEST_PR_NUMBER)")
+    review_parser.add_argument("--ticket", help="Jira key (or JIRA_TEST_TICKET)")
+    review_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Actually call Gemini once (without this flag = free dry-run)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "smoke":
@@ -53,6 +67,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "fetch":
         return run_fetch(repo=args.repo, pr=args.pr, ticket=args.ticket)
+
+    if args.command == "review":
+        return run_review(
+            repo=args.repo,
+            pr=args.pr,
+            ticket=args.ticket,
+            yes=args.yes,
+        )
 
     parser.error(f"Unknown command: {args.command}")
     return 2

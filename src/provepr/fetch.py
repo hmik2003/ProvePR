@@ -22,7 +22,7 @@ def _preview(text: str, max_lines: int = PREVIEW_LINES) -> str:
     return f"{shown}\n... ({len(lines) - max_lines} more lines)"
 
 
-def _resolve_targets(
+def resolve_targets(
     *,
     repo: str | None,
     pr: int | None,
@@ -59,7 +59,7 @@ def run_fetch(
     print("=== ProvePR — Sprint 3 Fetch ===")
     load_env()
     try:
-        full_name, pr_number, ticket_key = _resolve_targets(
+        full_name, pr_number, ticket_key = resolve_targets(
             repo=repo, pr=pr, ticket=ticket
         )
     except ValueError as exc:

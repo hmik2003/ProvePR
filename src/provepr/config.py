@@ -15,10 +15,13 @@ SPRINT2_KEYS = (
     "JIRA_EMAIL",
     "JIRA_API_TOKEN",
 )
-SPRINT3_KEYS = ("GOOGLE_API_KEY",)  # GEMINI_API_KEY is accepted as alias later
+SPRINT3_KEYS = ("GOOGLE_API_KEY",)  # GEMINI_API_KEY accepted as alias
 SPRINT4_KEYS = ("SLACK_WEBHOOK_URL",)
 
 ALL_TRACKED_KEYS = SPRINT2_KEYS + SPRINT3_KEYS + SPRINT4_KEYS + ("GEMINI_API_KEY",)
+
+# Cheap default for the supervisor's $5 budget (override with GEMINI_MODEL).
+DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
 
 
 @dataclass(frozen=True)
@@ -93,3 +96,20 @@ def require_jira_settings() -> JiraSettings:
         email=os.environ["JIRA_EMAIL"].strip(),
         api_token=os.environ["JIRA_API_TOKEN"].strip(),
     )
+
+
+@dataclass(frozen=True)
+class GeminiSettings:
+    api_key: str
+    model: str
+
+
+def require_gemini_settings() -> GeminiSettings:
+    load_env()
+    if not gemini_key_present():
+        raise ValueError(
+            "Missing required env: GOOGLE_API_KEY (or alias GEMINI_API_KEY)"
+        )
+    api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
+    model = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
+    return GeminiSettings(api_key=api_key, model=model)

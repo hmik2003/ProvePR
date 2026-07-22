@@ -21,8 +21,8 @@ Every sprint ships a **working increment**.
 | 1 | Local Python package + `smoke` CLI |
 | 2 | GitHub + Jira read connections (`connect` CLI) |
 | 3 | Fetch PR diff + Jira PRD (`fetch` CLI) |
-| **4 (next)** | Hermes + Gemini review (terminal) |
-| 5 | Post PR comment + Slack |
+| 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
+| **5 (next)** | Post PR comment + Slack |
 | 6 | HTTP trigger endpoint |
 | 7 | GitHub Action on personal repo |
 | 8 | Cloud Run deploy |
@@ -99,6 +99,22 @@ python -m provepr fetch --repo hmik2003/ProvePR --pr 1 --ticket PROJ-123
 Expected: PR title + diff preview, Jira summary + PRD preview, `=== Sprint 3 OK ===`.
 
 **How to choose `JIRA_TEST_TICKET`:** open any issue you can view in Jira → copy the key (`ABC-42`) → paste into `.env`. It does **not** need to match the GitHub PR for this sprint. Full checklist: [`PROJECT.md` §9b](./PROJECT.md).
+
+---
+
+## Sprint 4 — review (Gemini, cost-guarded)
+
+Requires `GOOGLE_API_KEY` or `GEMINI_API_KEY` in `.env`. Default model: `gemini-flash-lite-latest` (override with `GEMINI_MODEL`).
+
+**Budget rule:** Hermes multi-turn loops are deferred. ProvePR calls Gemini **once** per review, and only if you pass `--yes`.
+
+```powershell
+# Free dry-run (no Gemini spend)
+python -m provepr review
+
+# Spend one Gemini call
+python -m provepr review --yes
+```
 
 ### Tests
 

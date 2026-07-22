@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 3 complete — `fetch` pulls PR diff + Jira PRD; ready for Sprint 4 (Hermes + Gemini)  
+**Status:** Sprint 4 complete — cost-safe Gemini `review` verified; ready for Sprint 5 (PR comment / Slack)  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -86,11 +86,12 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 |----------|--------|-------|
 | Product name | **ProvePR** | Tagline: ProvePR — AI PR Reviewer |
 | Trigger | GitHub Action on PR → `staging` | Not Jira status transitions |
-| Agent runtime | **Nous Research Hermes Agent** | Supervisor direction |
-| LLM provider | **Google Gemini** (AI Studio API key) | Supervisor direction |
-| Model selection | Choose deliberately (Pro for deep review, Flash for cost/speed) | Supervisor: think before picking |
+| Agent runtime | **Nous Research Hermes Agent** (target) | Full multi-turn Hermes loop deferred in Sprint 4 for **$5 budget** safety; ship single-shot Gemini via ProvePR CLI first |
+| LLM provider | **Google Gemini** (AI Studio / GCP API key) | Supervisor-provided key + $5 cap |
+| Model selection | Default **Flash Lite** (`gemini-flash-lite-latest`); override `GEMINI_MODEL` | Pro only when deliberately chosen |
 | Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not `/openai` compat URL |
-| Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Hermes accepts either |
+| Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Prefer one; both OK (not double bill) |
+| Cost guards (Sprint 4+) | `--yes` required; **one** API call; no retries; truncate inputs | Protect supervisor budget |
 | Framework | Hermes first; **no LangChain** unless needed | Keep it simple |
 | Hosting (later) | Google **Cloud Run** | Org or personal GCP |
 | GitHub (dev) | Personal account **hmik2003** | Any org repo can be a later pilot |
@@ -144,8 +145,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **0 / Sprint 1** | Scaffold repo, smoke CLI, tests, docs | No | **Done** |
 | **1 / Sprint 2** | GitHub + Jira read connections | No (unless Jira token lacks read) | **Done** |
 | **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | **Done** |
-| **3 / Sprint 4** | Hermes + Gemini local AI review | No (need Gemini key; billing recommended) | Next |
-| **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Pending |
+| **3 / Sprint 4** | Local AI review (single-shot Gemini; Hermes loop later) | No (key + $5 from supervisor) | **Done** |
+| **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Next |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | Pending |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Pending |
 | **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Pending |
@@ -250,3 +251,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Rename | Final brand **ProvePR** / package `provepr` / tagline AI PR Reviewer |
 | 2026-07-22 | Sprint 2 | GitHub + Jira read clients; `python -m provepr connect`; repo https://github.com/hmik2003/ProvePR |
 | 2026-07-22 | Sprint 3 | `fetch` CLI; live OK for PR #1 + Jira **SX-2869** (feature flag Sense AI) |
+| 2026-07-22 | Sprint 4 | Cost decision: single-shot Gemini Flash `review` (not Hermes multi-turn) under $5 cap |
+| 2026-07-22 | Sprint 4 | Live OK: `gemini-flash-lite-latest` reviewed PR #1 vs SX-2869 (correctly Insufficient evidence) |
