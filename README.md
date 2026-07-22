@@ -1,8 +1,8 @@
-# TicketTrace
+# ProvePR — AI PR Reviewer
 
-AI-assisted **PR ↔ Jira/PRD** reviewer.
+Prove the PR matches the ticket.
 
-Connect any GitHub repo to any Jira board: TicketTrace reads the ticket requirements, reviews the PR diff with **Hermes Agent + Gemini**, comments on the PR, and can notify Slack.
+Connect any GitHub repo to any Jira board: **ProvePR** reads the requirements, reviews the PR diff with **Hermes Agent + Gemini**, comments on the PR, and can notify Slack.
 
 **Stack (locked):** Nous Research **Hermes Agent** + **Google Gemini** API key.  
 **Trigger (later):** GitHub Action on PRs to `staging` (configurable).  
@@ -40,7 +40,7 @@ Every sprint ships a **working increment**.
 ### Setup
 
 ```powershell
-cd C:\Users\HP\Desktop\TicketTrace
+cd C:\Users\HP\Desktop\ProvePR
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -50,10 +50,10 @@ $env:PYTHONPATH = "src"
 ### Smoke (working product)
 
 ```powershell
-python -m tickettrace smoke
+python -m provepr smoke
 ```
 
-Expected: `Sprint 1 OK` and a checklist of keys for later sprints (missing is normal until you fill `.env`).
+Expected: `Sprint 1 OK` and a checklist of keys for later sprints.
 
 ### Tests
 
@@ -69,10 +69,4 @@ pytest -q
 2. Fill values only when a sprint asks for them
 3. Never commit `.env`
 
-You will get **step-by-step instructions** in chat when GitHub / Jira / Gemini / Slack keys are required.
-
----
-
-## Do not paste secrets into chat
-
-When a key is ready, put it in `.env` yourself. Tell the agent “keys are in `.env`” — do not paste token values into the conversation.
+Do not paste token values into chat — put them in `.env` and say “keys are in `.env`”.

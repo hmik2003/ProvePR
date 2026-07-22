@@ -38,7 +38,6 @@ def load_env() -> Path | None:
     if env_path.is_file():
         load_dotenv(env_path)
         return env_path
-    # Still allow ambient process env (CI later)
     load_dotenv()
     return None
 

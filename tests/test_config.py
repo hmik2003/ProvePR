@@ -1,4 +1,4 @@
-from tickettrace.config import SPRINT2_KEYS, missing_keys, status_for_keys
+from provepr.config import SPRINT2_KEYS, missing_keys, status_for_keys
 
 
 def test_sprint2_key_list_is_stable():

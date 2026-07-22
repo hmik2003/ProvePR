@@ -1,12 +1,13 @@
-# TicketTrace — Project Context
+# ProvePR — Project Context
 
 > Living document. Update at the end of every phase. No stale or missing decisions.
 
-**Product name:** TicketTrace  
-**Repo folder:** `TicketTrace` (formerly `Staging-AI`)  
-**Python package:** `tickettrace`  
+**Product name:** ProvePR  
+**Tagline:** ProvePR — AI PR Reviewer  
+**Repo folder:** `ProvePR` (was `TicketTrace`, originally `Staging-AI`)  
+**Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 1 complete (renamed) — ready for Sprint 2 keys  
+**Status:** Sprint 1 complete (renamed to ProvePR) — ready for Sprint 2 keys  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -22,14 +23,14 @@ Build a **portable** AI pipeline that, when a PR is opened/updated toward **stag
 5. Posts a review **comment on the GitHub PR**
 6. Notifies the team on **Slack**
 
-Prove everything first on personal GitHub (`hmik2003`). Company boards/repos (e.g. a SpatialSense pilot) are **customers of TicketTrace**, not the product identity.
+Prove everything first on personal GitHub (`hmik2003`). Company boards/repos are **customers/pilots of ProvePR**, not the product identity.
 
 ### Agent count (plain English)
 
 - **One Hermes Agent** does the job end-to-end (one “virtual SQA reviewer” per PR run).
 - Inside that one agent there is **one Gemini model** doing the thinking.
 - Hermes may call several **tools** (Jira fetch, GitHub diff, post comment, Slack) — those are helpers, **not** separate agents.
-- We are **not** starting with a multi-agent swarm (no separate “security agent”, “UI agent”, etc.). That can be a later upgrade if quality needs it.
+- We are **not** starting with a multi-agent swarm. That can be a later upgrade if quality needs it.
 
 ### What step 4 is (and is not)
 
@@ -74,8 +75,8 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 ### Honest limits (QA ownership note)
 
 - Can only “see” what is in the **ticket text** + **PR diff** (and later, optionally linked docs).
-- Cannot prove runtime behavior without later adding real test execution (unit/integration/E2E) as a separate phase.
-- Quality depends on ticket quality: vague PRDs → weaker reviews. Enforcing good AC in Jira is part of making this agent useful.
+- Cannot prove runtime behavior without later adding real test execution as a separate phase.
+- Quality depends on ticket quality: vague PRDs → weaker reviews.
 
 ---
 
@@ -83,19 +84,18 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 
 | Decision | Choice | Notes |
 |----------|--------|-------|
-| Product name | **TicketTrace** | Portfolio-ready; not tied to one company product |
-| Trigger | GitHub Action on PR → `staging` | Not Jira status transitions (humans forget) |
-| Agent runtime | **Nous Research Hermes Agent** | Supervisor: “Hermes is the way forward” |
-| LLM provider | **Google Gemini** (AI Studio API key) | Supervisor: “Gemini ki key laga” |
-| Model selection | Choose deliberately (Pro for deep review, Flash for cheaper/faster) | Supervisor: “model soch samajh kar lagana” |
-| Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not the `/openai` compatibility URL |
+| Product name | **ProvePR** | Tagline: ProvePR — AI PR Reviewer |
+| Trigger | GitHub Action on PR → `staging` | Not Jira status transitions |
+| Agent runtime | **Nous Research Hermes Agent** | Supervisor direction |
+| LLM provider | **Google Gemini** (AI Studio API key) | Supervisor direction |
+| Model selection | Choose deliberately (Pro for deep review, Flash for cost/speed) | Supervisor: think before picking |
+| Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not `/openai` compat URL |
 | Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Hermes accepts either |
-| Initial candidate models | Pro-class for PR reviews; Flash for later cost tuning | Exact ID picked after `hermes model` / AI Studio availability |
-| Framework | Hermes first; **no LangChain** unless we hit a hard limit | Avoid over-engineering |
-| Hosting (later) | Google **Cloud Run** | Needs GCP access (org or personal) |
+| Framework | Hermes first; **no LangChain** unless needed | Keep it simple |
+| Hosting (later) | Google **Cloud Run** | Org or personal GCP |
 | GitHub (dev) | Personal account **hmik2003** | Any org repo can be a later pilot |
-| Jira | Configurable server; **read-only** in early phases | Works with any Jira Cloud board you can read |
-| Secrets | Local `.env` only; never commit; never bake into Docker image | Cloud Run = env vars / Secret Manager |
+| Jira | Configurable server; **read-only** early | Any Jira Cloud board you can read |
+| Secrets | Local `.env` only; never commit | Cloud Run = env / Secret Manager |
 
 ---
 
@@ -179,20 +179,19 @@ If no Jira ID is found, the Action skips the review (safe failure).
 
 | Question | Answer |
 |----------|--------|
-| Good idea for v1? | **No** — builds a second product before the pipeline is proven |
-| Feasible later? | **Yes** — after reviews are reliable and we store run results |
-| Maintainable as a custom app now? | **Poor** — UI + auth + DB + hosting + sync with GitHub = ongoing cost for an SQA-led first ship |
+| Good idea for v1? | **No** |
+| Feasible later? | **Yes** — after we persist run results |
+| Maintainable as a custom app now? | **Poor** for first ship |
 
-**v1 monitoring (no custom UI):** GitHub PR comments + Actions history + Slack alerts.  
-**Optional later:** lightweight history API / simple dashboard **only if** we already persist each run (PR, Jira ID, verdict, comment URL, timestamp). Until then, GitHub/Slack *are* the dashboard.
+**v1 monitoring:** GitHub PR comments + Actions history + Slack alerts.
 
 ---
 
 ## 8. Working agreement
 
 - Implement **one phase at a time**; commit after each phase
-- Keep this file accurate after every phase (status + decisions)
-- Lead QA owns quality criteria and acceptance; Lead SE owns implementation
+- Keep this file accurate after every phase
+- Lead QA owns quality criteria; Lead SE owns implementation
 - Test on personal GitHub before any company pilot
 
 ---
@@ -201,10 +200,10 @@ If no Jira ID is found, the Action skips the review (safe failure).
 
 - [ ] Exact Gemini model ID after first `hermes model` / AI Studio check
 - [ ] Real Jira project key for first pilot board
-- [ ] Personal test repo under `hmik2003` (suggested: `TicketTrace` or `tickettrace-demo`)
+- [ ] Personal test repo under `hmik2003` (suggested: `ProvePR` or `provepr-demo`)
 - [ ] Where PRD text lives in Jira (description vs custom field / AC)
 - [ ] Company Slack vs personal Slack for early tests
-- [ ] Revisit custom dashboard after first pilot (only if GitHub+Slack monitoring is not enough)
+- [ ] Revisit custom dashboard after first pilot
 
 ---
 
@@ -213,6 +212,6 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | Date | Phase | Notes |
 |------|-------|-------|
 | 2026-07-22 | Design | Locked Hermes Agent + Gemini; GitHub trigger; personal-first rollout |
-| 2026-07-22 | Design | Dashboard deferred to post-v1; use GitHub + Slack as monitor |
+| 2026-07-22 | Design | Dashboard deferred; use GitHub + Slack as monitor |
 | 2026-07-22 | Sprint 1 | Scaffold + smoke CLI; tests pass |
-| 2026-07-22 | Rename | Product/package/folder → **TicketTrace** / `tickettrace` |
+| 2026-07-22 | Rename | Briefly TicketTrace, then final brand **ProvePR** / `provepr` |

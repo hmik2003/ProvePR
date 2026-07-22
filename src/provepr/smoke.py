@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import sys
 
-from tickettrace import __version__
-from tickettrace.config import (
+from provepr import __version__
+from provepr.config import (
     SPRINT2_KEYS,
     SPRINT3_KEYS,
     SPRINT4_KEYS,
@@ -27,7 +27,7 @@ def run_smoke() -> int:
     root = project_root()
     env_path = load_env()
 
-    print("=== TicketTrace — Sprint 1 Smoke ===")
+    print("=== ProvePR — AI PR Reviewer — Sprint 1 Smoke ===")
     print(f"Package version : {__version__}")
     print(f"Project root    : {root}")
     print(f"Python          : {sys.version.split()[0]}")
