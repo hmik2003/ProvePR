@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 7 complete — GitHub Action reviews PRs to `staging`; ready for Sprint 8 (Cloud Run)  
+**Status:** Sprint 7 complete + accuracy sandbox live (`provepr-demo-shop` ↔ Jira `PROV`)  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -259,3 +259,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Sprint 6 | `python -m provepr serve` → GET /health, POST /v1/review (Bearer secret) |
 | 2026-07-22 | Sprint 7 | Workflow `provepr-review.yml` on PR → `staging`; Jira key extract + CI review |
 | 2026-07-22 | Sprint 7 | Live OK: Action on PR #2 → https://github.com/hmik2003/ProvePR/actions/runs/29907188075 |
+| 2026-07-22 | Accuracy sandbox | Jira project **PROV** + repo https://github.com/hmik2003/provepr-demo-shop ; tickets PROV-1..5; ticket-first PRs to staging |
+| 2026-07-22 | PRD quality experiment | Varied ticket fidelity on purpose: **PROV-1** rich QA-style; **PROV-2** Context/Scope/Done-when; **PROV-3** vague TBD; **PROV-4** structured feature; **PROV-5** nearly empty ("Add coupons maybe."). Review prompt upgraded for detailed 8-section reports + PRD-quality assessment; maxOutputTokens 4096. Re-reviewed demo-shop PR #1 (rich) vs #3 (vague). |

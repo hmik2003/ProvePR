@@ -22,12 +22,18 @@ from provepr.slack import notify_slack
 MAX_PRD_CHARS = 12_000
 MAX_DIFF_CHARS = 40_000
 
-SYSTEM_PROMPT = """You are ProvePR, an SQA-style PR reviewer.
+SYSTEM_PROMPT = """You are ProvePR, a senior SQA-style PR reviewer.
 Compare the Jira requirements (PRD) to the GitHub PR diff only.
 Do not invent files or behavior that are not evidenced in the diff.
-Be concise. Use the exact output structure requested.
-This is a static review, not a guarantee the feature works in staging.
 Prefer ASCII punctuation (use -> instead of arrows) so terminals stay compatible.
+This is a static review, not a runtime/E2E guarantee.
+
+Ticket quality varies. Adapt explicitly:
+- If the PRD is rich (AC, steps, expected/actual): map each AC and call out gaps precisely.
+- If the PRD is medium (Context/Scope/Done when): treat Done-when bullets as AC.
+- If the PRD is vague or nearly empty: do NOT pretend AC exist. Mark coverage Unclear,
+  infer only cautious risks from the diff, and list what the ticket should have said.
+Always produce a detailed, structured report using the required sections.
 """
 
 
@@ -63,17 +69,24 @@ URL: {pr_url}
 Key: {ticket_key}
 
 ## Requirements / PRD
-{prd_t or "(empty)"}
+{prd_t or "(empty — no description on ticket)"}
 
 ## PR diff
 {diff_t or "(empty)"}
 
-## Required output format
-1. **Verdict:** Requirements largely met | Partial | Insufficient evidence
-2. **AC coverage:** bullet list of criteria → Covered / Partial / Missing / Unclear
-3. **Findings:** severity (Blocker / Major / Minor / Info) + short note + file if known
-4. **Suggested human SQA focus:** what to still verify manually / in staging
-5. **Open questions:** ambiguities for author / product
+## Required output format (be thorough; use markdown)
+1. **PRD quality assessment:** Rich | Medium | Vague/Empty — 2-4 sentences on how ticket quality limits this review
+2. **Verdict:** Requirements largely met | Partial | Insufficient evidence
+3. **AC coverage table:** For each stated criterion (or inferred theme if vague):
+   - Criterion text
+   - Status: Covered / Partial / Missing / Unclear
+   - Evidence: file/hunk note OR why unclear
+4. **Findings:** severity (Blocker / Major / Minor / Info) + detail + file/area if known
+   Include at least one finding when the PRD is vague (usually about missing AC).
+5. **Risk & edge cases:** what could break in staging based on the diff + PRD gaps
+6. **Suggested human SQA focus:** concrete manual/API checks a tester should still run
+7. **Open questions:** for author / product (especially when PRD is thin)
+8. **Summary for Slack:** one short paragraph a busy lead can read in 10 seconds
 """
 
 

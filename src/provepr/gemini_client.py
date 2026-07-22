@@ -44,7 +44,7 @@ class GeminiClient:
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {
                 "temperature": 0.2,
-                "maxOutputTokens": 2048,
+                "maxOutputTokens": 4096,
             },
         }
         response = self._client.post(
