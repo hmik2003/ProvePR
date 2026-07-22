@@ -44,6 +44,6 @@ def run_smoke() -> int:
 
     print("\n=== Sprint 1 OK ===")
     print("Working product this sprint: local package + smoke CLI.")
-    print("Next: python -m provepr connect  (Sprint 2 GitHub + Jira).")
+    print("Next: python -m provepr connect | fetch")
     print("You do NOT need keys for Sprint 1 to pass.")
     return 0

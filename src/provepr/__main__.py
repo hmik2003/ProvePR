@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from provepr.connect import run_connect
+from provepr.fetch import run_fetch
 from provepr.smoke import run_smoke
 
 
@@ -32,16 +33,26 @@ def main(argv: list[str] | None = None) -> int:
         help="Only check Jira",
     )
 
+    fetch_parser = sub.add_parser(
+        "fetch",
+        help="Sprint 3: fetch PR diff + Jira PRD text",
+    )
+    fetch_parser.add_argument("--repo", help="owner/name (or GITHUB_TEST_REPO)")
+    fetch_parser.add_argument("--pr", type=int, help="PR number (or GITHUB_TEST_PR_NUMBER)")
+    fetch_parser.add_argument("--ticket", help="Jira key (or JIRA_TEST_TICKET)")
+
     args = parser.parse_args(argv)
 
     if args.command == "smoke":
         return run_smoke()
 
     if args.command == "connect":
-        # Neither flag → check both; either flag → check only that side.
         if args.github or args.jira:
             return run_connect(github=args.github, jira=args.jira)
         return run_connect(github=True, jira=True)
+
+    if args.command == "fetch":
+        return run_fetch(repo=args.repo, pr=args.pr, ticket=args.ticket)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

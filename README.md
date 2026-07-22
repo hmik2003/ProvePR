@@ -19,9 +19,9 @@ Every sprint ships a **working increment**.
 | Sprint | Working product |
 |--------|-----------------|
 | 1 | Local Python package + `smoke` CLI |
-| **2 (current)** | GitHub + Jira read connections (`connect` CLI) |
-| 3 | Fetch PR diff + Jira PRD |
-| 4 | Hermes + Gemini review (terminal) |
+| 2 | GitHub + Jira read connections (`connect` CLI) |
+| 3 | Fetch PR diff + Jira PRD (`fetch` CLI) |
+| **4 (next)** | Hermes + Gemini review (terminal) |
 | 5 | Post PR comment + Slack |
 | 6 | HTTP trigger endpoint |
 | 7 | GitHub Action on personal repo |
@@ -77,6 +77,28 @@ Check one side only:
 python -m provepr connect --github
 python -m provepr connect --jira
 ```
+
+---
+
+## Sprint 3 — fetch (PR diff + Jira PRD)
+
+Set targets in `.env` (or pass flags):
+
+```env
+GITHUB_TEST_REPO=hmik2003/ProvePR
+GITHUB_TEST_PR_NUMBER=1
+JIRA_TEST_TICKET=PROJ-123
+```
+
+```powershell
+python -m provepr fetch
+# or:
+python -m provepr fetch --repo hmik2003/ProvePR --pr 1 --ticket PROJ-123
+```
+
+Expected: PR title + diff preview, Jira summary + PRD preview, `=== Sprint 3 OK ===`.
+
+**How to choose `JIRA_TEST_TICKET`:** open any issue you can view in Jira → copy the key (`ABC-42`) → paste into `.env`. It does **not** need to match the GitHub PR for this sprint. Full checklist: [`PROJECT.md` §9b](./PROJECT.md).
 
 ### Tests
 

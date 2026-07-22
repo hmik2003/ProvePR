@@ -46,3 +46,16 @@ class GitHubClient:
         response = self._client.get(f"/repos/{full_name}")
         response.raise_for_status()
         return response.json()
+
+    def get_pull_request(self, full_name: str, number: int) -> dict:
+        response = self._client.get(f"/repos/{full_name}/pulls/{number}")
+        response.raise_for_status()
+        return response.json()
+
+    def get_pull_request_diff(self, full_name: str, number: int) -> str:
+        response = self._client.get(
+            f"/repos/{full_name}/pulls/{number}",
+            headers={"Accept": "application/vnd.github.diff"},
+        )
+        response.raise_for_status()
+        return response.text

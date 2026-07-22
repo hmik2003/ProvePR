@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 2 complete — GitHub + Jira read `connect` CLI verified; ready for Sprint 3  
+**Status:** Sprint 3 complete — `fetch` pulls PR diff + Jira PRD; ready for Sprint 4 (Hermes + Gemini)  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -143,8 +143,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 |-------|------|--------------------|--------|
 | **0 / Sprint 1** | Scaffold repo, smoke CLI, tests, docs | No | **Done** |
 | **1 / Sprint 2** | GitHub + Jira read connections | No (unless Jira token lacks read) | **Done** |
-| **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | Next |
-| **3 / Sprint 4** | Hermes + Gemini local AI review | No (need Gemini key; billing recommended) | Pending |
+| **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | **Done** |
+| **3 / Sprint 4** | Hermes + Gemini local AI review | No (need Gemini key; billing recommended) | Next |
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Pending |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | Pending |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Pending |
@@ -199,11 +199,44 @@ If no Jira ID is found, the Action skips the review (safe failure).
 ## 9. Open items
 
 - [ ] Exact Gemini model ID after first `hermes model` / AI Studio check
-- [ ] Real Jira project key for first pilot board
-- [ ] Personal test repo under `hmik2003` (suggested: `ProvePR` or `provepr-demo`)
-- [ ] Where PRD text lives in Jira (description vs custom field / AC)
+- [ ] Real Jira project key for first pilot board (any readable ticket is enough for Sprint 3 tests)
+- [x] Personal test repo under `hmik2003` — **https://github.com/hmik2003/ProvePR** (sample PR #1 for fetch tests)
+- [x] Sprint 3 live ticket used: **SX-2869** (Spatial Sense) — summary + description readable via API
+- [ ] Where PRD text lives in Jira (description vs custom field / AC) — Sprint 3 uses **summary + description** first; revisit if AC is a custom field
 - [ ] Company Slack vs personal Slack for early tests
 - [ ] Revisit custom dashboard after first pilot
+
+---
+
+## 9b. How to pick a Jira ticket for Sprint 3 (human checklist)
+
+**Yes — it must be a real Jira issue** on the same Atlassian site as `JIRA_SERVER_URL`.  
+It does **not** need to match the GitHub sample PR yet. We only need ProvePR to **read** ticket text.
+
+### What you need
+Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token again.
+
+### Step by step
+1. Open your Jira in the browser (same site as in `.env`, e.g. `https://something.atlassian.net`).
+2. Open **any** issue you can already view (yours, a teammate’s, an old bug — fine).
+3. Look at the top-left of the issue (or the URL). Copy the key, e.g. `ABC-42`.
+4. In `ProvePR/.env` add or edit:
+   ```env
+   JIRA_TEST_TICKET=ABC-42
+   ```
+   (use your real key; no quotes)
+5. Save the file. Reply in chat: **“ticket set”** (you may also paste the key — keys are not secrets).
+6. Agent runs `python -m provepr fetch` to confirm PR #1 diff + that ticket’s text.
+
+### Good vs not needed
+| Good | Not needed for Sprint 3 |
+|------|-------------------------|
+| Any issue your account can open | Matching the GitHub PR title |
+| Has a summary (description optional but nicer) | Creating a new project |
+| Same Jira site as your API token | Supervisor (unless you can’t browse any issue) |
+
+### Supervisor?
+**No**, unless you cannot open any Jira issue at all with your account.
 
 ---
 
@@ -215,4 +248,5 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | 2026-07-22 | Design | Dashboard deferred; use GitHub + Slack as monitor |
 | 2026-07-22 | Sprint 1 | Scaffold + smoke CLI; tests pass |
 | 2026-07-22 | Rename | Final brand **ProvePR** / package `provepr` / tagline AI PR Reviewer |
-| 2026-07-22 | Sprint 2 | GitHub + Jira read clients; `python -m provepr connect` |
+| 2026-07-22 | Sprint 2 | GitHub + Jira read clients; `python -m provepr connect`; repo https://github.com/hmik2003/ProvePR |
+| 2026-07-22 | Sprint 3 | `fetch` CLI; live OK for PR #1 + Jira **SX-2869** (feature flag Sense AI) |
