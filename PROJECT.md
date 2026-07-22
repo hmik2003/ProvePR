@@ -4,7 +4,7 @@
 
 **Product name:** ProvePR  
 **Tagline:** ProvePR — AI PR Reviewer  
-**Repo folder:** `ProvePR` (was `TicketTrace`, originally `Staging-AI`)  
+**Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
 **Status:** Sprint 1 complete (renamed to ProvePR) — ready for Sprint 2 keys  
@@ -214,4 +214,4 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | 2026-07-22 | Design | Locked Hermes Agent + Gemini; GitHub trigger; personal-first rollout |
 | 2026-07-22 | Design | Dashboard deferred; use GitHub + Slack as monitor |
 | 2026-07-22 | Sprint 1 | Scaffold + smoke CLI; tests pass |
-| 2026-07-22 | Rename | Briefly TicketTrace, then final brand **ProvePR** / `provepr` |
+| 2026-07-22 | Rename | Final brand **ProvePR** / package `provepr` / tagline AI PR Reviewer |
