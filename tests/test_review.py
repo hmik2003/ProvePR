@@ -98,3 +98,76 @@ def test_build_user_prompt_truncates():
         diff=huge,
     )
     assert "truncated diff" in prompt
+
+
+def test_run_review_post_requires_yes(monkeypatch):
+    monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    assert review_mod.run_review(yes=False, post=True) == 1
+
+
+def test_run_review_yes_post_github_and_slack_stub(monkeypatch):
+    calls = {"gemini": 0, "comment": 0}
+
+    class FakeGH:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return None
+
+        def get_pull_request(self, full_name, number):
+            return {"title": "t", "html_url": "http://x", "number": number}
+
+        def get_pull_request_diff(self, full_name, number):
+            return "diff --git a/x b/x\n+hi\n"
+
+        def create_issue_comment(self, full_name, number, body):
+            calls["comment"] += 1
+            assert "ProvePR review" in body
+            return {"html_url": "http://comment"}
+
+    class FakeJira:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return None
+
+        def get_issue(self, key):
+            return {"key": key, "fields": {"summary": "s", "description": "d"}}
+
+    class FakeGemini:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return None
+
+        def generate_text(self, **kwargs):
+            calls["gemini"] += 1
+            return "Verdict: Insufficient evidence"
+
+    monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    monkeypatch.setattr(
+        review_mod,
+        "resolve_targets",
+        lambda **kw: ("hmik2003/ProvePR", 1, "SX-2869"),
+    )
+    monkeypatch.setattr(
+        review_mod,
+        "require_gemini_settings",
+        lambda: type("S", (), {"model": "gemini-flash-lite-latest", "api_key": "x"})(),
+    )
+    monkeypatch.setattr(review_mod, "require_github_settings", lambda: object())
+    monkeypatch.setattr(review_mod, "require_jira_settings", lambda: object())
+    monkeypatch.setattr(review_mod, "GitHubClient", lambda s: FakeGH())
+    monkeypatch.setattr(review_mod, "JiraClient", lambda s: FakeJira())
+    monkeypatch.setattr(review_mod, "GeminiClient", lambda s: FakeGemini())
+    monkeypatch.setattr(
+        review_mod,
+        "notify_slack",
+        lambda text: type("R", (), {"posted": False, "detail": "Slack stub: skipped"})(),
+    )
+    assert review_mod.run_review(yes=True, post=True) == 0
+    assert calls["gemini"] == 1
+    assert calls["comment"] == 1

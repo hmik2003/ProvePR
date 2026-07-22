@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 4 complete — cost-safe Gemini `review` verified; ready for Sprint 5 (PR comment / Slack)  
+**Status:** Sprint 5 complete — PR comment posted + Slack stub; ready for Sprint 6 (HTTP trigger)  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -146,8 +146,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **1 / Sprint 2** | GitHub + Jira read connections | No (unless Jira token lacks read) | **Done** |
 | **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | **Done** |
 | **3 / Sprint 4** | Local AI review (single-shot Gemini; Hermes loop later) | No (key + $5 from supervisor) | **Done** |
-| **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Next |
-| **5 / Sprint 6** | HTTP wrapper for triggers | No | Pending |
+| **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | **Done** |
+| **5 / Sprint 6** | HTTP wrapper for triggers | No | Next |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Pending |
 | **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Pending |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
@@ -253,3 +253,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Sprint 3 | `fetch` CLI; live OK for PR #1 + Jira **SX-2869** (feature flag Sense AI) |
 | 2026-07-22 | Sprint 4 | Cost decision: single-shot Gemini Flash `review` (not Hermes multi-turn) under $5 cap |
 | 2026-07-22 | Sprint 4 | Live OK: `gemini-flash-lite-latest` reviewed PR #1 vs SX-2869 (correctly Insufficient evidence) |
+| 2026-07-22 | Sprint 5 | `review --yes --post` → GitHub PR comment; Slack webhook optional (stub if unset) |
+| 2026-07-22 | Sprint 5 | Live OK: comment on PR #1 → https://github.com/hmik2003/ProvePR/pull/1#issuecomment-5043523629 |

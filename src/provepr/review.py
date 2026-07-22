@@ -1,4 +1,4 @@
-"""Sprint 4 review — single-shot Gemini PRD vs diff review (cost-guarded)."""
+"""Sprint 4/5 review — single-shot Gemini review + optional GitHub/Slack publish."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from provepr.gemini_client import GeminiClient
 from provepr.github_client import GitHubClient
 from provepr.jira_client import JiraClient
 from provepr.jira_text import issue_prd_text
+from provepr.slack import notify_slack
 
 MAX_PRD_CHARS = 12_000
 MAX_DIFF_CHARS = 40_000
@@ -76,15 +77,32 @@ Key: {ticket_key}
 """
 
 
+def format_pr_comment(*, ticket_key: str, model: str, review_text: str) -> str:
+    return (
+        "## ProvePR review\n\n"
+        f"**Ticket:** `{ticket_key}`  \n"
+        f"**Model:** `{model}`  \n"
+        "_Static requirements-vs-diff review (not a runtime test)._\n\n"
+        "---\n\n"
+        f"{review_text.strip()}\n"
+    )
+
+
 def run_review(
     *,
     repo: str | None = None,
     pr: int | None = None,
     ticket: str | None = None,
     yes: bool = False,
+    post: bool = False,
 ) -> int:
-    print("=== ProvePR — Sprint 4 Review (cost-guarded) ===")
+    print("=== ProvePR — Review (cost-guarded) ===")
     load_env()
+
+    if post and not yes:
+        print("Review FAIL: --post requires --yes (one Gemini call + publish)")
+        return 1
+
     try:
         full_name, pr_number, ticket_key = resolve_targets(
             repo=repo, pr=pr, ticket=ticket
@@ -97,15 +115,17 @@ def run_review(
     print(f"Targets : {full_name}#{pr_number} <-> {ticket_key}")
     print(f"Model   : {gemini.model}")
     print("Cost    : exactly ONE Gemini call when --yes is passed (no retries)")
+    if post:
+        print("Publish : GitHub PR comment + Slack (or stub)")
 
     if not yes:
         print("\nDry-run only — no Gemini spend.")
-        print("Re-run with --yes to perform the single review call.")
-        print("Example: python -m provepr review --yes")
+        print("Re-run with --yes to review, or --yes --post to review and publish.")
         return 0
 
     try:
-        with GitHubClient(require_github_settings()) as gh:
+        gh_settings = require_github_settings()
+        with GitHubClient(gh_settings) as gh:
             pull = gh.get_pull_request(full_name, pr_number)
             diff = gh.get_pull_request_diff(full_name, pr_number)
         with JiraClient(require_jira_settings()) as jira:
@@ -124,10 +144,11 @@ def run_review(
     print(f"Input   : diff {len(diff_t)} chars" + (" (truncated)" if diff_cut else ""))
     print("Calling Gemini once...")
 
+    resolved_ticket = str(issue.get("key") or ticket_key)
     user_prompt = build_user_prompt(
         pr_title=str(pull.get("title") or ""),
         pr_url=str(pull.get("html_url") or ""),
-        ticket_key=str(issue.get("key") or ticket_key),
+        ticket_key=resolved_ticket,
         prd=prd,
         diff=diff,
     )
@@ -151,6 +172,44 @@ def run_review(
 
     print("\n--- AI review ---")
     _safe_print(review_text)
+
+    if post:
+        comment_body = format_pr_comment(
+            ticket_key=resolved_ticket,
+            model=gemini.model,
+            review_text=review_text,
+        )
+        try:
+            with GitHubClient(gh_settings) as gh:
+                comment = gh.create_issue_comment(full_name, pr_number, comment_body)
+            comment_url = comment.get("html_url") or "(no url)"
+            print(f"\nGitHub  : comment posted → {comment_url}")
+        except httpx.HTTPStatusError as exc:
+            print(f"\nGitHub FAIL: HTTP {exc.response.status_code} posting comment")
+            return 1
+        except httpx.RequestError as exc:
+            print(f"\nGitHub FAIL: request error ({exc.__class__.__name__})")
+            return 1
+
+        slack_text = (
+            f"ProvePR review on {full_name}#{pr_number} ({resolved_ticket})\n"
+            f"{comment_url}"
+        )
+        try:
+            slack = notify_slack(slack_text)
+            print(f"Slack   : {slack.detail}")
+        except httpx.HTTPStatusError as exc:
+            print(f"Slack FAIL: HTTP {exc.response.status_code}")
+            return 1
+        except httpx.RequestError as exc:
+            print(f"Slack FAIL: request error ({exc.__class__.__name__})")
+            return 1
+
+        print("\n=== Sprint 5 OK ===")
+        print("Working product: review + GitHub PR comment (+ Slack or stub).")
+        return 0
+
     print("\n=== Sprint 4 OK ===")
-    print("Working product: single-shot Gemini PRD-vs-diff review (Hermes loop deferred for budget).")
+    print("Working product: single-shot Gemini PRD-vs-diff review.")
+    print("Add --post to publish the comment (Sprint 5).")
     return 0

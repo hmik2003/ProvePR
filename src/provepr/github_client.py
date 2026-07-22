@@ -59,3 +59,12 @@ class GitHubClient:
         )
         response.raise_for_status()
         return response.text
+
+    def create_issue_comment(self, full_name: str, number: int, body: str) -> dict:
+        """Post a comment on a PR (issues API)."""
+        response = self._client.post(
+            f"/repos/{full_name}/issues/{number}/comments",
+            json={"body": body},
+        )
+        response.raise_for_status()
+        return response.json()

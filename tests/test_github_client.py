@@ -69,3 +69,19 @@ def test_get_pull_request_diff_ok():
     client = GitHubClient(GitHubSettings(token="ghp_test"))
     diff = client.get_pull_request_diff("hmik2003/ProvePR", 1)
     assert "hello" in diff
+
+
+@respx.mock
+def test_create_issue_comment_ok():
+    respx.post("https://api.github.com/repos/hmik2003/ProvePR/issues/1/comments").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": 99,
+                "html_url": "https://github.com/hmik2003/ProvePR/pull/1#issuecomment-99",
+            },
+        )
+    )
+    client = GitHubClient(GitHubSettings(token="ghp_test"))
+    comment = client.create_issue_comment("hmik2003/ProvePR", 1, "hello")
+    assert comment["id"] == 99

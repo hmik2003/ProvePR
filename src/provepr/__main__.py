@@ -54,6 +54,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Actually call Gemini once (without this flag = free dry-run)",
     )
+    review_parser.add_argument(
+        "--post",
+        action="store_true",
+        help="After review, post GitHub PR comment + Slack (or stub); requires --yes",
+    )
 
     args = parser.parse_args(argv)
 
@@ -74,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
             pr=args.pr,
             ticket=args.ticket,
             yes=args.yes,
+            post=args.post,
         )
 
     parser.error(f"Unknown command: {args.command}")

@@ -22,8 +22,8 @@ Every sprint ships a **working increment**.
 | 2 | GitHub + Jira read connections (`connect` CLI) |
 | 3 | Fetch PR diff + Jira PRD (`fetch` CLI) |
 | 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
-| **5 (next)** | Post PR comment + Slack |
-| 6 | HTTP trigger endpoint |
+| 5 | Post PR comment + Slack (or stub) |
+| **6 (next)** | HTTP trigger endpoint |
 | 7 | GitHub Action on personal repo |
 | 8 | Cloud Run deploy |
 | 9 | First company pilot handoff |
@@ -114,7 +114,12 @@ python -m provepr review
 
 # Spend one Gemini call
 python -m provepr review --yes
+
+# Review + post GitHub PR comment (+ Slack if webhook set, else stub)
+python -m provepr review --yes --post
 ```
+
+Optional Slack: set `SLACK_WEBHOOK_URL` in `.env` (Incoming Webhook). **No supervisor needed** to finish Sprint 5 — stub is enough. Involve Slack admin only if you want a real channel ping.
 
 ### Tests
 
