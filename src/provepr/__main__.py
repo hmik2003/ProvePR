@@ -7,6 +7,7 @@ import argparse
 from provepr.connect import run_connect
 from provepr.fetch import run_fetch
 from provepr.review import run_review
+from provepr.server import run_server
 from provepr.smoke import run_smoke
 
 
@@ -44,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
 
     review_parser = sub.add_parser(
         "review",
-        help="Sprint 4: single-shot Gemini PRD-vs-diff review (cost-guarded)",
+        help="Sprint 4/5: Gemini review; optional --post to GitHub/Slack",
     )
     review_parser.add_argument("--repo", help="owner/name (or GITHUB_TEST_REPO)")
     review_parser.add_argument("--pr", type=int, help="PR number (or GITHUB_TEST_PR_NUMBER)")
@@ -57,7 +58,12 @@ def main(argv: list[str] | None = None) -> int:
     review_parser.add_argument(
         "--post",
         action="store_true",
-        help="After review, post GitHub PR comment + Slack (or stub); requires --yes",
+        help="After review, post GitHub PR comment + Slack DM (or stub); requires --yes",
+    )
+
+    sub.add_parser(
+        "serve",
+        help="Sprint 6: HTTP trigger server (GET /health, POST /v1/review)",
     )
 
     args = parser.parse_args(argv)
@@ -81,6 +87,9 @@ def main(argv: list[str] | None = None) -> int:
             yes=args.yes,
             post=args.post,
         )
+
+    if args.command == "serve":
+        return run_server()
 
     parser.error(f"Unknown command: {args.command}")
     return 2

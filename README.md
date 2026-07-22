@@ -22,9 +22,9 @@ Every sprint ships a **working increment**.
 | 2 | GitHub + Jira read connections (`connect` CLI) |
 | 3 | Fetch PR diff + Jira PRD (`fetch` CLI) |
 | 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
-| 5 | Post PR comment + Slack (or stub) |
-| **6 (next)** | HTTP trigger endpoint |
-| 7 | GitHub Action on personal repo |
+| 5 | Post PR comment + Slack personal DM (or stub) |
+| 6 | HTTP trigger endpoint (`serve`) |
+| **7 (next)** | GitHub Action on personal repo |
 | 8 | Cloud Run deploy |
 | 9 | First company pilot handoff |
 
@@ -115,11 +115,35 @@ python -m provepr review
 # Spend one Gemini call
 python -m provepr review --yes
 
-# Review + post GitHub PR comment (+ Slack if webhook set, else stub)
+# Review + post GitHub PR comment (+ Slack personal DM if bot configured)
 python -m provepr review --yes --post
 ```
 
-Optional Slack: set `SLACK_WEBHOOK_URL` in `.env` (Incoming Webhook). **No supervisor needed** to finish Sprint 5 — stub is enough. Involve Slack admin only if you want a real channel ping.
+### Slack — personal DM only (for now)
+
+Incoming webhooks cannot DM you. ProvePR uses a **Slack bot → your DM**:
+
+```env
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_DM_USER_ID=U...
+```
+
+See chat / PROJECT.md for create-app steps. Product channels later.
+
+---
+
+## Sprint 6 — HTTP trigger
+
+Set `PROVEPR_TRIGGER_SECRET` in `.env`, then:
+
+```powershell
+python -m provepr serve
+```
+
+- `GET /health`
+- `POST /v1/review` with header `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`  
+  Body: `{"repo":"hmik2003/ProvePR","pr":1,"ticket":"SX-2869","post":true}`  
+  **Each POST spends one Gemini call.**
 
 ### Tests
 

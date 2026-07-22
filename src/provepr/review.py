@@ -204,6 +204,9 @@ def run_review(
         except httpx.RequestError as exc:
             print(f"Slack FAIL: request error ({exc.__class__.__name__})")
             return 1
+        except ValueError as exc:
+            print(f"Slack FAIL: {exc}")
+            return 1
 
         print("\n=== Sprint 5 OK ===")
         print("Working product: review + GitHub PR comment (+ Slack or stub).")

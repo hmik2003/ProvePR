@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 5 complete — PR comment posted + Slack stub; ready for Sprint 6 (HTTP trigger)  
+**Status:** Sprint 6 complete — local HTTP trigger; Slack = personal DM when bot configured  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -91,7 +91,7 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 | Model selection | Default **Flash Lite** (`gemini-flash-lite-latest`); override `GEMINI_MODEL` | Pro only when deliberately chosen |
 | Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not `/openai` compat URL |
 | Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Prefer one; both OK (not double bill) |
-| Cost guards (Sprint 4+) | `--yes` required; **one** API call; no retries; truncate inputs | Protect supervisor budget |
+| Slack notify (early) | **Personal DM only** via Slack bot (`SLACK_BOT_TOKEN` + `SLACK_DM_USER_ID`) | Product channels later if quality is good |
 | Framework | Hermes first; **no LangChain** unless needed | Keep it simple |
 | Hosting (later) | Google **Cloud Run** | Org or personal GCP |
 | GitHub (dev) | Personal account **hmik2003** | Any org repo can be a later pilot |
@@ -147,8 +147,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | **Done** |
 | **3 / Sprint 4** | Local AI review (single-shot Gemini; Hermes loop later) | No (key + $5 from supervisor) | **Done** |
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | **Done** |
-| **5 / Sprint 6** | HTTP wrapper for triggers | No | Next |
-| **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Pending |
+| **5 / Sprint 6** | HTTP wrapper for triggers | No | **Done** |
+| **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | Next |
 | **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Pending |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
 
@@ -204,7 +204,7 @@ If no Jira ID is found, the Action skips the review (safe failure).
 - [x] Personal test repo under `hmik2003` — **https://github.com/hmik2003/ProvePR** (sample PR #1 for fetch tests)
 - [x] Sprint 3 live ticket used: **SX-2869** (Spatial Sense) — summary + description readable via API
 - [ ] Where PRD text lives in Jira (description vs custom field / AC) — Sprint 3 uses **summary + description** first; revisit if AC is a custom field
-- [ ] Company Slack vs personal Slack for early tests
+- [x] Company Slack vs personal Slack for early tests — **decision: personal DM only for now**; product channels later
 - [ ] Revisit custom dashboard after first pilot
 
 ---
@@ -255,3 +255,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Sprint 4 | Live OK: `gemini-flash-lite-latest` reviewed PR #1 vs SX-2869 (correctly Insufficient evidence) |
 | 2026-07-22 | Sprint 5 | `review --yes --post` → GitHub PR comment; Slack webhook optional (stub if unset) |
 | 2026-07-22 | Sprint 5 | Live OK: comment on PR #1 → https://github.com/hmik2003/ProvePR/pull/1#issuecomment-5043523629 |
+| 2026-07-22 | Sprint 5b | Slack decision: **personal DM only** via bot token + user id |
+| 2026-07-22 | Sprint 6 | `python -m provepr serve` → GET /health, POST /v1/review (Bearer secret) |
