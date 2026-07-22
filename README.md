@@ -18,8 +18,8 @@ Every sprint ships a **working increment**.
 
 | Sprint | Working product |
 |--------|-----------------|
-| **1 (current)** | Local Python package + `smoke` CLI |
-| 2 | GitHub + Jira read connections |
+| 1 | Local Python package + `smoke` CLI |
+| **2 (current)** | GitHub + Jira read connections (`connect` CLI) |
 | 3 | Fetch PR diff + Jira PRD |
 | 4 | Hermes + Gemini review (terminal) |
 | 5 | Post PR comment + Slack |
@@ -30,14 +30,7 @@ Every sprint ships a **working increment**.
 
 ---
 
-## Sprint 1 — run it
-
-### Prerequisites
-
-- Python 3.11+ (3.12/3.13 preferred; 3.14 may work)
-- Windows PowerShell is fine
-
-### Setup
+## Setup
 
 ```powershell
 cd C:\Users\HP\Desktop\ProvePR
@@ -47,13 +40,43 @@ pip install -r requirements.txt
 $env:PYTHONPATH = "src"
 ```
 
-### Smoke (working product)
+---
+
+## Sprint 1 — smoke
 
 ```powershell
 python -m provepr smoke
 ```
 
-Expected: `Sprint 1 OK` and a checklist of keys for later sprints.
+Expected: `Sprint 1 OK` (no API keys required).
+
+---
+
+## Sprint 2 — connect (GitHub + Jira)
+
+1. Copy `.env.example` → `.env`
+2. Fill Sprint 2 keys: `GITHUB_TOKEN`, `JIRA_SERVER_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`
+3. Run:
+
+```powershell
+python -m provepr connect
+```
+
+Expected: `GitHub OK`, `Jira OK`, `=== Sprint 2 OK ===`
+
+Optional deeper peeks in `.env`:
+
+```env
+GITHUB_TEST_REPO=hmik2003/your-repo
+JIRA_TEST_TICKET=PROJ-123
+```
+
+Check one side only:
+
+```powershell
+python -m provepr connect --github
+python -m provepr connect --jira
+```
 
 ### Tests
 

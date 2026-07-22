@@ -57,3 +57,39 @@ def status_for_keys(keys: tuple[str, ...]) -> list[KeyStatus]:
 
 def missing_keys(keys: tuple[str, ...]) -> list[str]:
     return [k for k in keys if not key_present(k)]
+
+
+@dataclass(frozen=True)
+class GitHubSettings:
+    token: str
+
+
+@dataclass(frozen=True)
+class JiraSettings:
+    server_url: str
+    email: str
+    api_token: str
+
+
+def normalize_jira_base_url(url: str) -> str:
+    return url.strip().rstrip("/")
+
+
+def require_github_settings() -> GitHubSettings:
+    load_env()
+    missing = missing_keys(("GITHUB_TOKEN",))
+    if missing:
+        raise ValueError(f"Missing required env: {', '.join(missing)}")
+    return GitHubSettings(token=os.environ["GITHUB_TOKEN"].strip())
+
+
+def require_jira_settings() -> JiraSettings:
+    load_env()
+    missing = missing_keys(("JIRA_SERVER_URL", "JIRA_EMAIL", "JIRA_API_TOKEN"))
+    if missing:
+        raise ValueError(f"Missing required env: {', '.join(missing)}")
+    return JiraSettings(
+        server_url=normalize_jira_base_url(os.environ["JIRA_SERVER_URL"]),
+        email=os.environ["JIRA_EMAIL"].strip(),
+        api_token=os.environ["JIRA_API_TOKEN"].strip(),
+    )

@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-22  
-**Status:** Sprint 1 complete (renamed to ProvePR) — ready for Sprint 2 keys  
+**Status:** Sprint 2 complete — GitHub + Jira read `connect` CLI verified; ready for Sprint 3  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -142,8 +142,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | Phase | What | Supervisor needed? | Status |
 |-------|------|--------------------|--------|
 | **0 / Sprint 1** | Scaffold repo, smoke CLI, tests, docs | No | **Done** |
-| **1 / Sprint 2** | GitHub + Jira read connections | No (unless Jira token lacks read) | Next |
-| **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | Pending |
+| **1 / Sprint 2** | GitHub + Jira read connections | No (unless Jira token lacks read) | **Done** |
+| **2 / Sprint 3** | Fetch real PR diff + Jira PRD text | No | Next |
 | **3 / Sprint 4** | Hermes + Gemini local AI review | No (need Gemini key; billing recommended) | Pending |
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | Pending |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | Pending |
@@ -215,3 +215,4 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | 2026-07-22 | Design | Dashboard deferred; use GitHub + Slack as monitor |
 | 2026-07-22 | Sprint 1 | Scaffold + smoke CLI; tests pass |
 | 2026-07-22 | Rename | Final brand **ProvePR** / package `provepr` / tagline AI PR Reviewer |
+| 2026-07-22 | Sprint 2 | GitHub + Jira read clients; `python -m provepr connect` |
