@@ -6,6 +6,7 @@ import argparse
 
 from provepr.connect import run_connect
 from provepr.fetch import run_fetch
+from provepr.jira_key import extract_jira_key
 from provepr.review import run_review
 from provepr.server import run_server
 from provepr.smoke import run_smoke
@@ -66,6 +67,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Sprint 6: HTTP trigger server (GET /health, POST /v1/review)",
     )
 
+    jira_parser = sub.add_parser(
+        "jira-key",
+        help="Sprint 7: extract Jira key from title/branch/body text",
+    )
+    jira_parser.add_argument("--title", default="")
+    jira_parser.add_argument("--branch", default="")
+    jira_parser.add_argument("--body", default="")
+
     args = parser.parse_args(argv)
 
     if args.command == "smoke":
@@ -90,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "serve":
         return run_server()
+
+    if args.command == "jira-key":
+        key = extract_jira_key(args.title, args.branch, args.body)
+        if not key:
+            return 1
+        print(key)
+        return 0
 
     parser.error(f"Unknown command: {args.command}")
     return 2

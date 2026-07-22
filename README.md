@@ -24,7 +24,7 @@ Every sprint ships a **working increment**.
 | 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
 | 5 | Post PR comment + Slack personal DM (or stub) |
 | 6 | HTTP trigger endpoint (`serve`) |
-| **7 (next)** | GitHub Action on personal repo |
+| **7 (current)** | GitHub Action on PR → `staging` |
 | 8 | Cloud Run deploy |
 | 9 | First company pilot handoff |
 
@@ -144,6 +144,27 @@ python -m provepr serve
 - `POST /v1/review` with header `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`  
   Body: `{"repo":"hmik2003/ProvePR","pr":1,"ticket":"SX-2869","post":true}`  
   **Each POST spends one Gemini call.**
+
+---
+
+## Sprint 7 — GitHub Action (PR → staging)
+
+Workflow: [`.github/workflows/provepr-review.yml`](./.github/workflows/provepr-review.yml)
+
+Triggers on PRs **into `staging`**. Extracts Jira key from title → branch → body. If found, runs `provepr review --yes --post` in CI (comment + Slack DM).
+
+### Repo secrets to add (Settings → Secrets and variables → Actions)
+
+| Secret | Required |
+|--------|----------|
+| `JIRA_SERVER_URL` | Yes |
+| `JIRA_EMAIL` | Yes |
+| `JIRA_API_TOKEN` | Yes |
+| `GOOGLE_API_KEY` | Yes |
+| `SLACK_BOT_TOKEN` | Optional (DM) |
+| `SLACK_DM_USER_ID` | Optional (DM) |
+
+`GITHUB_TOKEN` is provided by Actions automatically.
 
 ### Tests
 
