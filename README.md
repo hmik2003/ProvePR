@@ -62,6 +62,7 @@ ProvePR tools only (no terminal/browser): Jira PRD (parent + subtasks) + GitHub 
 - **1 ticket ↔ 1 PR** — exactly one Jira key in the PR title (multiple keys skip the Action).
 - **Development panel** — comment advises if the PR is not linked on the Jira ticket; **non-blocking**.
 - **PRD quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` checks Story mandatory sections (Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope). Does **not** block To Do yet.
+- **Skip notify** — if a PR has no Jira key (or multiple keys in the title), review is skipped (no Gemini) but QA gets a Slack DM + short PR comment via `skip-notify`.
 
 ---
 

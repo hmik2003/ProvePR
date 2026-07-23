@@ -59,6 +59,8 @@ jobs:
           SRC=$(echo "$EVAL" | cut -d'|' -f3)
           if [ "$STATUS" = "OK" ] && [ -n "$KEY" ]; then
             echo "key=$KEY" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=" >> "$GITHUB_OUTPUT"
+            echo "skip_detail=" >> "$GITHUB_OUTPUT"
             if [ "$SRC" = "fallback" ]; then
               echo "Found Jira key via branch/body: $KEY (prefer exactly one key in the PR title)."
             else
@@ -67,11 +69,31 @@ jobs:
           else
             echo "key=" >> "$GITHUB_OUTPUT"
             if [ "$KEY" = "multiple" ]; then
+              echo "skip_reason=multiple" >> "$GITHUB_OUTPUT"
+              echo "skip_detail=$SRC" >> "$GITHUB_OUTPUT"
               echo "Multiple Jira keys in PR title ($SRC) — company policy is 1 ticket per PR. Skipping review."
             else
+              echo "skip_reason=none" >> "$GITHUB_OUTPUT"
+              echo "skip_detail=" >> "$GITHUB_OUTPUT"
               echo "No Jira key in title/branch/body — skipping review (safe)."
             fi
           fi
+
+      - name: Notify QA — review skipped
+        if: steps.jira.outputs.key == ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DM_USER_ID: ${{ secrets.SLACK_DM_USER_ID }}
+          PYTHONPATH: src
+        run: |
+          python -m provepr skip-notify \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --reason "${{ steps.jira.outputs.skip_reason }}" \
+            --detail "${{ steps.jira.outputs.skip_detail }}" \
+            --title "${{ github.event.pull_request.title }}" \
+            --pr-url "${{ github.event.pull_request.html_url }}"
 
       - name: Run ProvePR review + publish
         if: steps.jira.outputs.key != ''

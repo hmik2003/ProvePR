@@ -10,6 +10,7 @@ from provepr.jira_key import extract_jira_key
 from provepr.prd_gate_cli import run_prd_gate
 from provepr.review import run_review
 from provepr.server import run_server
+from provepr.skip_notify import run_skip_notify
 from provepr.smoke import run_smoke
 
 
@@ -87,6 +88,31 @@ def main(argv: list[str] | None = None) -> int:
         help="Also send the gate report to Slack (if configured)",
     )
 
+    skip_parser = sub.add_parser(
+        "skip-notify",
+        help="Notify QA that review was skipped (no ticket / policy); no Gemini",
+    )
+    skip_parser.add_argument("--repo", required=True, help="owner/name")
+    skip_parser.add_argument("--pr", type=int, required=True, help="PR number")
+    skip_parser.add_argument(
+        "--reason",
+        default="none",
+        choices=["none", "multiple"],
+        help="Why review was skipped",
+    )
+    skip_parser.add_argument("--title", default="", help="PR title (for the message)")
+    skip_parser.add_argument("--pr-url", default="", help="PR html URL")
+    skip_parser.add_argument(
+        "--detail",
+        default="",
+        help="Extra detail (e.g. comma-separated keys when reason=multiple)",
+    )
+    skip_parser.add_argument(
+        "--no-comment",
+        action="store_true",
+        help="Slack only — do not post a GitHub skip comment",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "smoke":
@@ -121,6 +147,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "prd-gate":
         return run_prd_gate(ticket=args.ticket, notify=args.notify)
+
+    if args.command == "skip-notify":
+        return run_skip_notify(
+            repo=args.repo,
+            pr=args.pr,
+            reason=args.reason,
+            title=args.title,
+            pr_url=args.pr_url,
+            detail=args.detail,
+            comment=not args.no_comment,
+        )
 
     parser.error(f"Unknown command: {args.command}")
     return 2
