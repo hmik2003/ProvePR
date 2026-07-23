@@ -7,6 +7,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.venv312/
 venv/
 env/
 
@@ -16,8 +17,12 @@ env/
 .env.*.local
 *.pem
 
-# Hermes local config (if installed on machine later)
-.hermes/
+# Hermes local runtime junk — keep committed project plugin
+.hermes/*
+!.hermes/plugins/
+.hermes/plugins/*
+!.hermes/plugins/provepr/
+!.hermes/plugins/provepr/**
 
 # Test / coverage
 .pytest_cache/
@@ -38,4 +43,5 @@ dist/
 build/
 *.egg-info/
 
-.worktrees/
+.tmp-hermes-agent/
+

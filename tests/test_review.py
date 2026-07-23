@@ -16,6 +16,7 @@ def test_run_review_dry_run_no_gemini(monkeypatch):
             raise AssertionError("should not call Gemini on dry-run")
 
     monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    monkeypatch.setattr(review_mod, "hermes_available", lambda: False)
     monkeypatch.setattr(
         review_mod,
         "resolve_targets",
@@ -69,6 +70,7 @@ def test_run_review_yes_calls_gemini_once(monkeypatch):
             return "Verdict: Insufficient evidence"
 
     monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    monkeypatch.setattr(review_mod, "hermes_available", lambda: False)
     monkeypatch.setattr(
         review_mod,
         "resolve_targets",
@@ -88,7 +90,48 @@ def test_run_review_yes_calls_gemini_once(monkeypatch):
     assert calls["gemini"] == 1
 
 
-def test_build_user_prompt_truncates():
+def test_run_review_yes_uses_hermes_when_available(monkeypatch):
+    calls = {"hermes": 0}
+
+    monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    monkeypatch.setattr(review_mod, "hermes_available", lambda: True)
+    monkeypatch.setattr(
+        review_mod,
+        "resolve_targets",
+        lambda **kw: ("hmik2003/provepr-demo-shop", 5, "PROV-5"),
+    )
+    monkeypatch.setattr(
+        review_mod,
+        "require_gemini_settings",
+        lambda: type("S", (), {"model": "gemini-flash-lite-latest", "api_key": "x"})(),
+    )
+    monkeypatch.setattr(review_mod, "require_github_settings", lambda: object())
+    monkeypatch.setattr(review_mod, "require_jira_settings", lambda: object())
+
+    def fake_hermes(**kwargs):
+        calls["hermes"] += 1
+        assert kwargs["repo"] == "hmik2003/provepr-demo-shop"
+        assert kwargs["pr"] == 5
+        assert kwargs["ticket_key"] == "PROV-5"
+        return "1. **PRD quality assessment:** Vague\n2. **Verdict:** Insufficient evidence"
+
+    monkeypatch.setattr(review_mod, "run_hermes_review", fake_hermes)
+    assert review_mod.run_review(yes=True) == 0
+    assert calls["hermes"] == 1
+
+
+def test_format_pr_comment_mentions_tldr_guidance():
+    body = review_mod.format_pr_comment(
+        ticket_key="PROV-6",
+        model="Hermes + gemini-flash-lite-latest",
+        review_text="0. **TL;DR**\n- **Verdict:** Requirements largely met",
+    )
+    assert "PROV-6" in body
+    assert "TL;DR" in body
+    assert "Must-fix" in body or "Blocker/Major" in body
+
+
+def test_build_user_prompt_includes_tldr_and_truncates():
     huge = "x" * (review_mod.MAX_DIFF_CHARS + 500)
     prompt = review_mod.build_user_prompt(
         pr_title="t",
@@ -98,6 +141,8 @@ def test_build_user_prompt_truncates():
         diff=huge,
     )
     assert "truncated diff" in prompt
+    assert "TL;DR" in prompt
+    assert "Must-fix" in prompt
 
 
 def test_run_review_post_requires_yes(monkeypatch):
@@ -124,6 +169,7 @@ def test_run_review_yes_post_github_and_slack_stub(monkeypatch):
         def create_issue_comment(self, full_name, number, body):
             calls["comment"] += 1
             assert "ProvePR review" in body
+            assert "Hermes" in body or "single-shot" in body or "gemini" in body.lower()
             return {"html_url": "http://comment"}
 
     class FakeJira:
@@ -148,6 +194,7 @@ def test_run_review_yes_post_github_and_slack_stub(monkeypatch):
             return "Verdict: Insufficient evidence"
 
     monkeypatch.setattr(review_mod, "load_env", lambda: None)
+    monkeypatch.setattr(review_mod, "hermes_available", lambda: False)
     monkeypatch.setattr(
         review_mod,
         "resolve_targets",

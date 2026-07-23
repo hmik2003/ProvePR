@@ -48,7 +48,15 @@ def _authorize(authorization: str | None) -> None:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "provepr"}
+    from provepr import __version__
+    from provepr.hermes_review import hermes_available
+
+    return {
+        "status": "ok",
+        "service": "provepr",
+        "version": __version__,
+        "engine": "hermes" if hermes_available() else "single-shot-fallback",
+    }
 
 
 @app.post("/v1/review", response_model=ReviewResponse)
@@ -57,8 +65,8 @@ def trigger_review(
     authorization: Annotated[str | None, Header()] = None,
 ) -> ReviewResponse:
     """
-    Run one Gemini review (always spends one model call).
-    Set post=true to also comment on GitHub (+ Slack DM if configured).
+    Run a Hermes+Gemini review (or single-shot fallback).
+    Always spends model budget when invoked. Set post=true to also comment on GitHub (+ Slack).
     """
     _authorize(authorization)
     code = run_review(
@@ -82,14 +90,23 @@ def trigger_review(
 
 
 def run_server() -> int:
-    """Start uvicorn using PROVEPR_HTTP_HOST / PROVEPR_HTTP_PORT."""
+    """Start uvicorn. Cloud Run uses PORT; local uses PROVEPR_HTTP_*."""
     load_env()
-    host = (os.getenv("PROVEPR_HTTP_HOST") or "127.0.0.1").strip()
-    port_raw = (os.getenv("PROVEPR_HTTP_PORT") or "8080").strip()
+    # Cloud Run / Docker: bind all interfaces. Local default stays loopback unless HOST set.
+    host = (
+        os.getenv("PROVEPR_HTTP_HOST")
+        or os.getenv("HOST")
+        or ("0.0.0.0" if os.getenv("PORT") else "127.0.0.1")
+    ).strip()
+    port_raw = (
+        os.getenv("PORT")
+        or os.getenv("PROVEPR_HTTP_PORT")
+        or "8080"
+    ).strip()
     try:
         port = int(port_raw)
     except ValueError:
-        print(f"Serve FAIL: invalid PROVEPR_HTTP_PORT={port_raw!r}")
+        print(f"Serve FAIL: invalid port={port_raw!r}")
         return 1
 
     if not _expected_secret():
@@ -98,9 +115,9 @@ def run_server() -> int:
 
     import uvicorn
 
-    print("=== ProvePR — Sprint 6 HTTP ===")
+    print("=== ProvePR — HTTP serve ===")
     print(f"Listening on http://{host}:{port}")
     print("Endpoints: GET /health  POST /v1/review (Bearer PROVEPR_TRIGGER_SECRET)")
-    print("Each POST /v1/review spends exactly one Gemini call.")
+    print("Each POST /v1/review runs Hermes+Gemini (capped) or single-shot fallback.")
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0

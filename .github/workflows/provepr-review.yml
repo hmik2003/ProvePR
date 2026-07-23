@@ -54,6 +54,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_DM_USER_ID: ${{ secrets.SLACK_DM_USER_ID }}
           PYTHONPATH: src
+          HERMES_ENABLE_PROJECT_PLUGINS: "1"
         run: |
           python -m provepr review --yes --post \
             --repo "${{ github.repository }}" \

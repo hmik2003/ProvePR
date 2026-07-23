@@ -77,6 +77,8 @@ def run_connect(*, github: bool = True, jira: bool = True) -> int:
         return 1
 
     print("\n=== Sprint 2 OK ===")
-    print("Working product this sprint: GitHub + Jira read connections.")
-    print("Next sprint: fetch real PR diff + Jira PRD text.")
+    print("Working product this sprint: GitHub + Jira connections.")
+    print("Security: Jira client is GET-only (no ticket create/edit). Prefer a Browse-only bot account.")
+    print("Security: GitHub may post PR comments when reviewing with --post; no code push APIs.")
+    print("See SECURITY.md. Next: fetch / review.")
     return 0

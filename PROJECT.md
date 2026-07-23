@@ -6,8 +6,8 @@
 **Tagline:** ProvePR — AI PR Reviewer  
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
-**Last updated:** 2026-07-22  
-**Status:** Sprint 7 complete + accuracy sandbox live (`provepr-demo-shop` ↔ Jira `PROV`)  
+**Last updated:** 2026-07-23  
+**Status:** Single Docker image **verified locally** (`provepr:local`, `/health` → Hermes); Sprint 8 live Cloud Run await supervisor GCP  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -86,16 +86,16 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 |----------|--------|-------|
 | Product name | **ProvePR** | Tagline: ProvePR — AI PR Reviewer |
 | Trigger | GitHub Action on PR → `staging` | Not Jira status transitions |
-| Agent runtime | **Nous Research Hermes Agent** (target) | Full multi-turn Hermes loop deferred in Sprint 4 for **$5 budget** safety; ship single-shot Gemini via ProvePR CLI first |
-| LLM provider | **Google Gemini** (AI Studio / GCP API key) | Supervisor-provided key + $5 cap |
+| Agent runtime | **Nous Research Hermes Agent** | Tool-using loop with ProvePR tools (`get_jira_prd`, `get_pull_request`, `get_pull_request_diff`); `max_iterations=8`; falls back to single-shot Gemini if Hermes missing |
+| LLM provider | **Google Gemini** (AI Studio / GCP API key) | Supervisor-provided key + $5 cap — Hermes may use **multiple** calls per review (capped) |
 | Model selection | Default **Flash Lite** (`gemini-flash-lite-latest`); override `GEMINI_MODEL` | Pro only when deliberately chosen |
-| Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Not `/openai` compat URL |
+| Preferred Gemini endpoint | Native `https://generativelanguage.googleapis.com/v1beta` | Via Hermes `provider=gemini` |
 | Env var for key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Prefer one; both OK (not double bill) |
 | Slack notify (early) | **Personal DM only** via Slack bot (`SLACK_BOT_TOKEN` + `SLACK_DM_USER_ID`) | Product channels later if quality is good |
 | Framework | Hermes first; **no LangChain** unless needed | Keep it simple |
-| Hosting (later) | Google **Cloud Run** | Org or personal GCP |
+| Hosting | Google **Cloud Run** via **single Docker image** | Image = ProvePR + Hermes + deps; secrets via env / Secret Manager |
 | GitHub (dev) | Personal account **hmik2003** | Any org repo can be a later pilot |
-| Jira | Configurable server; **read-only** early | Any Jira Cloud board you can read |
+| Jira | Configurable server; **read-only in ProvePR code** | Prefer bot account with Browse-only; see SECURITY.md |
 | Secrets | Local `.env` only; never commit | Cloud Run = env / Secret Manager |
 
 ---
@@ -106,22 +106,21 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 [PR opened/updated → staging]
             │
             ▼
-   [GitHub Action]
+   [GitHub Action]  (interim: checkout ProvePR; later: POST to Cloud Run)
    extract Jira ID (title → branch → body)
             │
             ▼
-   [HTTP trigger → service on Cloud Run]
+   [Single Docker image on Cloud Run — provepr serve]
             │
             ▼
-   [Hermes Agent + Gemini model]
-      ├─ tool: fetch Jira ticket (R/O)
-      ├─ tool: fetch GitHub PR diff
-      ├─ reason: requirements vs code
-      ├─ tool: post GitHub PR comment
-      └─ tool: Slack notify
+   [Hermes Agent + Gemini]
+      ├─ tool: get_jira_prd
+      ├─ tool: get_pull_request / get_pull_request_diff
+      ├─ reason: requirements vs code (≤8 turns)
+      └─ Python posts GitHub comment + Slack DM
 ```
 
-**Local-first path:** same Hermes review logic runs on laptop before Cloud Run exists.
+**Local-first path:** same Hermes review logic runs on laptop / `docker run` before Cloud Run exists.
 
 ---
 
@@ -149,7 +148,8 @@ If no Jira ID is found, the Action skips the review (safe failure).
 | **4 / Sprint 5** | Post GitHub PR comment + Slack (or stub) | Maybe Slack admin | **Done** |
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | **Done** |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **Done** |
-| **7 / Sprint 8** | Deploy to Google Cloud Run | **Yes if using org GCP** | Next |
+| **Hermes + Docker** | Hermes tool loop + single Dockerfile for Cloud Run | No (local Docker) | **Done** |
+| **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — GCP project + gcloud** | **In progress** (scripts ready; live deploy blocked on access) |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
 
 ---
@@ -169,7 +169,7 @@ If no Jira ID is found, the Action skips the review (safe failure).
 
 ## 7. Out of scope (for now)
 
-- Writing/updating Jira tickets
+- Writing/updating Jira tickets (**enforced in code** — see [`SECURITY.md`](./SECURITY.md))
 - Replacing human code review
 - LangChain-first architecture
 - Unauthenticated public Cloud Run endpoints
@@ -261,3 +261,7 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-22 | Sprint 7 | Live OK: Action on PR #2 → https://github.com/hmik2003/ProvePR/actions/runs/29907188075 |
 | 2026-07-22 | Accuracy sandbox | Jira project **PROV** + repo https://github.com/hmik2003/provepr-demo-shop ; tickets PROV-1..5; ticket-first PRs to staging |
 | 2026-07-22 | PRD quality experiment | Varied ticket fidelity on purpose: **PROV-1** rich QA-style; **PROV-2** Context/Scope/Done-when; **PROV-3** vague TBD; **PROV-4** structured feature; **PROV-5** nearly empty ("Add coupons maybe."). Review prompt upgraded for detailed 8-section reports + PRD-quality assessment; maxOutputTokens 4096. Re-reviewed demo-shop PR #1 (rich) vs #3 (vague). |
+| 2026-07-22 | Hermes + Docker | Option 2 tool Hermes (`max_iterations=8`, ProvePR tools only); single `Dockerfile` (Python 3.12 + hermes-agent pin `9acc4b47`); fallback single-shot if Hermes missing; ready for Cloud Run |
+| 2026-07-23 | Sprint 8 prep | Cloud Run deploy scripts (`scripts/deploy-cloud-run.ps1` / `.sh`); comment TL;DR + Must-fix guidance; `/health` reports engine; live deploy awaits GCP + gcloud |
+| 2026-07-23 | Docker verified | Local `docker build -t provepr:local` OK; container `/health` → `{"status":"ok","engine":"hermes"}` — ready to hand Dockerfile/repo to supervisor for Cloud Run |
+| 2026-07-23 | Security cleanup | Documented least-privilege in SECURITY.md; Jira remains GET-only in code; clarified GitHub comment-write vs no push; bot-account guidance for company Jira |

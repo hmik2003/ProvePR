@@ -5,168 +5,116 @@ Prove the PR matches the ticket.
 Connect any GitHub repo to any Jira board: **ProvePR** reads the requirements, reviews the PR diff with **Hermes Agent + Gemini**, comments on the PR, and can notify Slack.
 
 **Stack (locked):** Nous Research **Hermes Agent** + **Google Gemini** API key.  
-**Trigger (later):** GitHub Action on PRs to `staging` (configurable).  
+**Deploy unit:** **one Docker image** (ProvePR + Hermes + deps) → Cloud Run.  
 **Dev account:** personal GitHub `hmik2003` first; company pilots later.
 
-Living product context: [`PROJECT.md`](./PROJECT.md)
+Living product context: [`PROJECT.md`](./PROJECT.md)  
+Security / least privilege: [`SECURITY.md`](./SECURITY.md)
 
 ---
 
 ## Sprint model
 
-Every sprint ships a **working increment**.
-
 | Sprint | Working product |
 |--------|-----------------|
-| 1 | Local Python package + `smoke` CLI |
-| 2 | GitHub + Jira read connections (`connect` CLI) |
-| 3 | Fetch PR diff + Jira PRD (`fetch` CLI) |
-| 4 | Single-shot Gemini `review` (cost-guarded; Hermes loop later) |
-| 5 | Post PR comment + Slack personal DM (or stub) |
-| 6 | HTTP trigger endpoint (`serve`) |
-| 7 | GitHub Action on PR → `staging` |
-| **8 (next)** | Cloud Run deploy |
+| 1–7 | CLI + Action + HTTP serve (done) |
+| **Hermes + Docker** | Tool-using Hermes review + single image (done) |
+| **8 (in progress)** | Cloud Run deploy scripts ready — needs your GCP project |
 | 9 | First company pilot handoff |
 
 ---
 
-## Setup
+## Setup (local)
+
+Hermes requires **Python 3.11–3.13** (not 3.14). Recommended:
 
 ```powershell
 cd C:\Users\HP\Desktop\ProvePR
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+py -3.12 -m venv .venv312
+.\.venv312\Scripts\Activate.ps1
 pip install -r requirements.txt
 $env:PYTHONPATH = "src"
+$env:HERMES_ENABLE_PROJECT_PLUGINS = "1"
 ```
+
+Copy `.env.example` → `.env` and fill keys as needed.
 
 ---
 
-## Sprint 1 — smoke
+## Review (Hermes + Gemini)
 
 ```powershell
-python -m provepr smoke
-```
-
-Expected: `Sprint 1 OK` (no API keys required).
-
----
-
-## Sprint 2 — connect (GitHub + Jira)
-
-1. Copy `.env.example` → `.env`
-2. Fill Sprint 2 keys: `GITHUB_TOKEN`, `JIRA_SERVER_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`
-3. Run:
-
-```powershell
-python -m provepr connect
-```
-
-Expected: `GitHub OK`, `Jira OK`, `=== Sprint 2 OK ===`
-
-Optional deeper peeks in `.env`:
-
-```env
-GITHUB_TEST_REPO=hmik2003/your-repo
-JIRA_TEST_TICKET=PROJ-123
-```
-
-Check one side only:
-
-```powershell
-python -m provepr connect --github
-python -m provepr connect --jira
-```
-
----
-
-## Sprint 3 — fetch (PR diff + Jira PRD)
-
-Set targets in `.env` (or pass flags):
-
-```env
-GITHUB_TEST_REPO=hmik2003/ProvePR
-GITHUB_TEST_PR_NUMBER=1
-JIRA_TEST_TICKET=PROJ-123
-```
-
-```powershell
-python -m provepr fetch
-# or:
-python -m provepr fetch --repo hmik2003/ProvePR --pr 1 --ticket PROJ-123
-```
-
-Expected: PR title + diff preview, Jira summary + PRD preview, `=== Sprint 3 OK ===`.
-
-**How to choose `JIRA_TEST_TICKET`:** open any issue you can view in Jira → copy the key (`ABC-42`) → paste into `.env`. It does **not** need to match the GitHub PR for this sprint. Full checklist: [`PROJECT.md` §9b](./PROJECT.md).
-
----
-
-## Sprint 4 — review (Gemini, cost-guarded)
-
-Requires `GOOGLE_API_KEY` or `GEMINI_API_KEY` in `.env`. Default model: `gemini-flash-lite-latest` (override with `GEMINI_MODEL`).
-
-**Budget rule:** Hermes multi-turn loops are deferred. ProvePR calls Gemini **once** per review, and only if you pass `--yes`.
-
-```powershell
-# Free dry-run (no Gemini spend)
+# Free dry-run
 python -m provepr review
 
-# Spend one Gemini call
+# Hermes tool loop (up to 8 Gemini turns) — uses get_jira_prd / get_pull_request / get_pull_request_diff
 python -m provepr review --yes
 
-# Review + post GitHub PR comment (+ Slack personal DM if bot configured)
+# Review + GitHub comment + Slack DM
 python -m provepr review --yes --post
 ```
 
-### Slack — personal DM only (for now)
+**Cost:** `--yes` is required. Hermes may call Gemini **multiple times** (capped at **8** turns). If `hermes-agent` is missing, ProvePR falls back to a single-shot Gemini call.
 
-Incoming webhooks cannot DM you. ProvePR uses a **Slack bot → your DM**:
-
-```env
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_DM_USER_ID=U...
-```
-
-See chat / PROJECT.md for create-app steps. Product channels later.
+ProvePR tools only (no terminal/browser): Jira PRD + GitHub PR meta + unified diff.
 
 ---
 
-## Sprint 6 — HTTP trigger
+## Single Docker image (supervisor path)
 
-Set `PROVEPR_TRIGGER_SECRET` in `.env`, then:
+```powershell
+docker build -t provepr .
+docker run --rm -p 8080:8080 --env-file .env -e PORT=8080 provepr
+```
+
+- `GET http://localhost:8080/health`
+- `POST /v1/review` with `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`
+
+Secrets stay in env / Secret Manager — **never** baked into the image. Cloud Run = run this same image.
+
+---
+
+## HTTP serve (without Docker)
 
 ```powershell
 python -m provepr serve
 ```
 
-- `GET /health`
-- `POST /v1/review` with header `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`  
-  Body: `{"repo":"hmik2003/ProvePR","pr":1,"ticket":"SX-2869","post":true}`  
-  **Each POST spends one Gemini call.**
+Honors `PORT` (Cloud Run) or `PROVEPR_HTTP_PORT` (local).
 
 ---
 
-## Sprint 7 — GitHub Action (PR → staging)
+## Sprint 8 — Cloud Run (single image)
 
-Workflow: [`.github/workflows/provepr-review.yml`](./.github/workflows/provepr-review.yml)
+Deploy unit is the repo root [`Dockerfile`](./Dockerfile) (ProvePR + Hermes + deps).
 
-Triggers on PRs **into `staging`**. Extracts Jira key from title → branch → body. If found, runs `provepr review --yes --post` in CI (comment + Slack DM).
+**You need:** a GCP project (billing on) + [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). Local Docker is optional — the script uses **Cloud Build**.
 
-### Repo secrets to add (Settings → Secrets and variables → Actions)
+```powershell
+# From repo root (after gcloud auth login)
+.\scripts\deploy-cloud-run.ps1 -ProjectId "YOUR_GCP_PROJECT" -Region "us-central1"
+```
 
-| Secret | Required |
-|--------|----------|
-| `JIRA_SERVER_URL` | Yes |
-| `JIRA_EMAIL` | Yes |
-| `JIRA_API_TOKEN` | Yes |
-| `GOOGLE_API_KEY` | Yes |
-| `SLACK_BOT_TOKEN` | Optional (DM) |
-| `SLACK_DM_USER_ID` | Optional (DM) |
+Then set secrets on the service (never bake into the image):
 
-`GITHUB_TOKEN` is provided by Actions automatically.
+```powershell
+gcloud run services update provepr --region us-central1 --update-env-vars `
+  "PROVEPR_TRIGGER_SECRET=...,GITHUB_TOKEN=...,JIRA_SERVER_URL=...,JIRA_EMAIL=...,JIRA_API_TOKEN=...,GOOGLE_API_KEY=..."
+```
 
-### Tests
+Verify: `GET $SERVICE_URL/health` and authenticated `POST /v1/review`.
+
+Full checklist: [`docs/superpowers/plans/2026-07-23-sprint-8-cloud-run.md`](./docs/superpowers/plans/2026-07-23-sprint-8-cloud-run.md)
+
+---
+
+## GitHub Action (interim)
+
+Workflow still checks out ProvePR into the runner until Cloud Run URL is wired. After Sprint 8, Actions can become a thin `POST` to the service.
+
+---
+
+## Tests
 
 ```powershell
 pytest -q
@@ -177,7 +125,6 @@ pytest -q
 ## Secrets
 
 1. Copy `.env.example` → `.env`
-2. Fill values only when a sprint asks for them
-3. Never commit `.env`
-
-Do not paste token values into chat — put them in `.env` and say “keys are in `.env`”.
+2. Never commit `.env`
+3. Do not paste token values into chat
+4. Follow least privilege in [`SECURITY.md`](./SECURITY.md) (Jira browse-only bot; GitHub comment-only write)

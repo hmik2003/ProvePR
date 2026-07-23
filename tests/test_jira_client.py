@@ -48,3 +48,30 @@ def test_get_myself_401():
         assert False, "expected HTTPStatusError"
     except httpx.HTTPStatusError as exc:
         assert exc.response.status_code == 401
+
+
+def test_jira_client_exposes_only_read_methods():
+    """Security: product must not grow accidental Jira write helpers."""
+    allowed = {
+        "__init__",
+        "close",
+        "__enter__",
+        "__exit__",
+        "get_myself",
+        "get_issue",
+    }
+    methods = {
+        name
+        for name, obj in vars(JiraClient).items()
+        if callable(obj) and (not name.startswith("_") or name in allowed)
+    }
+    assert methods <= allowed
+    assert {"get_myself", "get_issue"} <= methods
+    forbidden = {
+        "create_issue",
+        "update_issue",
+        "delete_issue",
+        "add_comment",
+        "transition_issue",
+    }
+    assert not (forbidden & set(dir(JiraClient)))

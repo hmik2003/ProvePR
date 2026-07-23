@@ -4,3 +4,5 @@ httpx>=0.27.0
 respx>=0.21.0
 fastapi>=0.115.0
 uvicorn>=0.30.0
+# Hermes Agent (Python >=3.11,<3.14). Pin commit for reproducible Docker builds.
+hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git@9acc4b47f5b2abda0949d07372ecf67938d50a16

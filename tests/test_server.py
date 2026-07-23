@@ -7,7 +7,11 @@ def test_health():
     client = TestClient(server_mod.app)
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["service"] == "provepr"
+    assert "engine" in body
+    assert "version" in body
 
 
 def test_review_requires_secret(monkeypatch):

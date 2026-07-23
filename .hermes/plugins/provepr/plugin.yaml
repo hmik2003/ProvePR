@@ -1,0 +1,7 @@
+name: provepr
+version: 1.0.0
+description: ProvePR Jira + GitHub read tools for Hermes agent reviews
+provides_tools:
+  - get_jira_prd
+  - get_pull_request
+  - get_pull_request_diff

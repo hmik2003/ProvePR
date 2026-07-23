@@ -1,4 +1,4 @@
-"""Read-only GitHub REST helpers for ProvePR."""
+"""GitHub REST helpers for ProvePR (read PR/diff; write PR comments only)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ API_ROOT = "https://api.github.com"
 
 
 class GitHubClient:
+    """Fetch PRs/diffs and optionally post review comments. No code push/merge APIs."""
     def __init__(
         self,
         settings: GitHubSettings,
