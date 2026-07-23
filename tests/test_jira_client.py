@@ -59,6 +59,8 @@ def test_jira_client_exposes_only_read_methods():
         "__exit__",
         "get_myself",
         "get_issue",
+        "get_subtasks",
+        "get_development_pull_requests",
     }
     methods = {
         name
@@ -66,7 +68,12 @@ def test_jira_client_exposes_only_read_methods():
         if callable(obj) and (not name.startswith("_") or name in allowed)
     }
     assert methods <= allowed
-    assert {"get_myself", "get_issue"} <= methods
+    assert {
+        "get_myself",
+        "get_issue",
+        "get_subtasks",
+        "get_development_pull_requests",
+    } <= methods
     forbidden = {
         "create_issue",
         "update_issue",
@@ -75,3 +82,78 @@ def test_jira_client_exposes_only_read_methods():
         "transition_issue",
     }
     assert not (forbidden & set(dir(JiraClient)))
+
+
+@respx.mock
+def test_get_subtasks_fetches_children():
+    respx.get(
+        "https://acme.atlassian.net/rest/api/3/issue/PROV-1",
+        params={"fields": "summary,subtasks"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "key": "PROV-1",
+                "fields": {"summary": "Parent", "subtasks": [{"key": "PROV-2"}]},
+            },
+        )
+    )
+    respx.get(
+        "https://acme.atlassian.net/rest/api/3/issue/PROV-2",
+        params={"fields": "summary,description,status"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "key": "PROV-2",
+                "fields": {
+                    "summary": "Child",
+                    "description": "AC",
+                    "status": {"name": "To Do"},
+                },
+            },
+        )
+    )
+    client = JiraClient(_settings())
+    children = client.get_subtasks("PROV-1")
+    assert len(children) == 1
+    assert children[0]["key"] == "PROV-2"
+
+
+@respx.mock
+def test_get_development_pull_requests_ok():
+    respx.get("https://acme.atlassian.net/rest/dev-status/latest/issue/detail").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "detail": [
+                    {
+                        "pullRequests": [
+                            {
+                                "id": "42",
+                                "url": "https://github.com/o/r/pull/42",
+                                "name": "Pull request #42",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+    )
+    client = JiraClient(_settings())
+    prs, err = client.get_development_pull_requests({"id": "100", "key": "PROV-1"})
+    assert err is None
+    assert len(prs) == 1
+    assert prs[0]["id"] == "42"
+
+
+@respx.mock
+def test_get_development_pull_requests_forbidden():
+    respx.get("https://acme.atlassian.net/rest/dev-status/latest/issue/detail").mock(
+        return_value=httpx.Response(403, json={})
+    )
+    client = JiraClient(_settings())
+    prs, err = client.get_development_pull_requests({"id": "100", "key": "PROV-1"})
+    assert prs == []
+    assert err is not None
+    assert "Development" in err

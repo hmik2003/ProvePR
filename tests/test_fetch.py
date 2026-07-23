@@ -35,6 +35,9 @@ def test_run_fetch_ok(monkeypatch):
                 },
             }
 
+        def get_subtasks(self, key):
+            return []
+
     monkeypatch.setattr(fetch_mod, "require_github_settings", lambda: object())
     monkeypatch.setattr(fetch_mod, "require_jira_settings", lambda: object())
     monkeypatch.setattr(fetch_mod, "GitHubClient", lambda settings: FakeGH())

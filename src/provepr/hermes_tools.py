@@ -8,7 +8,7 @@ from typing import Any
 from provepr.config import require_github_settings, require_jira_settings
 from provepr.github_client import GitHubClient
 from provepr.jira_client import JiraClient
-from provepr.jira_text import issue_prd_text
+from provepr.jira_text import build_prd_with_subtasks
 
 MAX_PRD_CHARS = 12_000
 MAX_DIFF_CHARS = 40_000
@@ -30,7 +30,7 @@ def _err(message: str) -> str:
 
 
 def get_jira_prd(args: dict, **kwargs: object) -> str:
-    """Fetch Jira ticket PRD text for a key like PROV-1."""
+    """Fetch Jira ticket PRD text (parent + subtasks) for a key like PROV-1."""
     del kwargs
     ticket_key = str(args.get("ticket_key") or "").strip()
     if not ticket_key:
@@ -38,11 +38,13 @@ def get_jira_prd(args: dict, **kwargs: object) -> str:
     try:
         with JiraClient(require_jira_settings()) as jira:
             issue = jira.get_issue(ticket_key)
-        prd = issue_prd_text(issue)
+            subtasks = jira.get_subtasks(ticket_key)
+            prd = build_prd_with_subtasks(issue, subtasks)
         key = str(issue.get("key") or ticket_key)
         return _ok(
             {
                 "ticket_key": key,
+                "subtask_count": len(subtasks),
                 "prd": _truncate(prd or "(empty — no description on ticket)", MAX_PRD_CHARS),
                 "prd_chars": len(prd or ""),
             }

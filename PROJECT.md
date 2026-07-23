@@ -133,6 +133,10 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 | PR title | `PROJ-105: Add password reset button to the login screen` |
 | Branch | `feature/PROJ-105-password-reset` |
 
+**Policy (1 ticket ↔ 1 PR):** Put **exactly one** Jira key in the PR title. Multiple keys in the title skip the Action review. Branch/body are fallback only when the title has no key.
+
+**Development panel:** ProvePR checks whether this PR appears under the ticket's Jira **Development** section. If not, the GitHub comment asks the author to link it. This is **advisory only** — it never blocks the review or merge.
+
 If no Jira ID is found, the Action skips the review (safe failure).
 
 ---
@@ -265,3 +269,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-23 | Sprint 8 prep | Cloud Run deploy scripts (`scripts/deploy-cloud-run.ps1` / `.sh`); comment TL;DR + Must-fix guidance; `/health` reports engine; live deploy awaits GCP + gcloud |
 | 2026-07-23 | Docker verified | Local `docker build -t provepr:local` OK; container `/health` → `{"status":"ok","engine":"hermes"}` — ready to hand Dockerfile/repo to supervisor for Cloud Run |
 | 2026-07-23 | Security cleanup | Documented least-privilege in SECURITY.md; Jira remains GET-only in code; clarified GitHub comment-write vs no push; bot-account guidance for company Jira |
+| 2026-07-23 | Development advisory | Non-blocking check: is this PR linked on the Jira Development panel? Comment asks author to link if missing; never blocks. Subtasks included in PRD text. Title policy: exactly one Jira key (1 ticket ↔ 1 PR). |
+| 2026-07-23 | PRD quality gate (soft) | CLI `python -m provepr prd-gate --ticket KEY` for **Story** tickets: mandatory Goals/Persona/User stories/Functional reqs/AC/Success metrics/Scope; scores parent+subtasks; Ready vs Needs work; never blocks. Webhook on To Do later. |

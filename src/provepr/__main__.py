@@ -7,6 +7,7 @@ import argparse
 from provepr.connect import run_connect
 from provepr.fetch import run_fetch
 from provepr.jira_key import extract_jira_key
+from provepr.prd_gate_cli import run_prd_gate
 from provepr.review import run_review
 from provepr.server import run_server
 from provepr.smoke import run_smoke
@@ -75,6 +76,17 @@ def main(argv: list[str] | None = None) -> int:
     jira_parser.add_argument("--branch", default="")
     jira_parser.add_argument("--body", default="")
 
+    gate_parser = sub.add_parser(
+        "prd-gate",
+        help="Soft PRD quality gate for Story tickets (mandatory sections)",
+    )
+    gate_parser.add_argument("--ticket", required=True, help="Jira issue key (e.g. PROV-10)")
+    gate_parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Also send the gate report to Slack (if configured)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "smoke":
@@ -106,6 +118,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(key)
         return 0
+
+    if args.command == "prd-gate":
+        return run_prd_gate(ticket=args.ticket, notify=args.notify)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

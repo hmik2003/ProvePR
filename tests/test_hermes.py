@@ -20,16 +20,15 @@ def test_get_jira_prd_success(monkeypatch):
                 "fields": {"summary": "Coupons", "description": "Add coupons maybe."},
             }
 
+        def get_subtasks(self, key):
+            return []
+
     monkeypatch.setattr(tools, "require_jira_settings", lambda: object())
     monkeypatch.setattr(tools, "JiraClient", lambda s: FakeJira())
-    monkeypatch.setattr(
-        tools,
-        "issue_prd_text",
-        lambda issue: "Summary: Coupons\n\nAdd coupons maybe.",
-    )
     raw = tools.get_jira_prd({"ticket_key": "PROV-5"})
     data = json.loads(raw)
     assert data["ticket_key"] == "PROV-5"
+    assert data["subtask_count"] == 0
     assert "coupons" in data["prd"].lower()
 
 

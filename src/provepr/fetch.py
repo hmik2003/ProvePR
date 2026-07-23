@@ -9,7 +9,7 @@ import httpx
 from provepr.config import load_env, require_github_settings, require_jira_settings
 from provepr.github_client import GitHubClient
 from provepr.jira_client import JiraClient
-from provepr.jira_text import issue_prd_text
+from provepr.jira_text import build_prd_with_subtasks
 
 PREVIEW_LINES = 40
 
@@ -77,8 +77,9 @@ def run_fetch(
 
         with JiraClient(jira_settings) as jira:
             issue = jira.get_issue(ticket_key)
+            subtasks = jira.get_subtasks(ticket_key)
 
-        prd = issue_prd_text(issue)
+        prd = build_prd_with_subtasks(issue, subtasks)
     except ValueError as exc:
         print(f"Fetch FAIL: {exc}")
         return 1
@@ -97,6 +98,8 @@ def run_fetch(
 
     fields = issue.get("fields") or {}
     print(f"\nJira {issue.get('key', ticket_key)} — {fields.get('summary', '(no summary)')}")
+    if subtasks:
+        print(f"  Subtasks: {len(subtasks)} included in PRD text")
     print("  --- PRD / requirements preview ---")
     print(_preview(prd or "(no description text on this ticket)"))
 

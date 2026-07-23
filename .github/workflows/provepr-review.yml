@@ -33,12 +33,44 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
-          KEY=$(PYTHONPATH=src python -c "import os; from provepr.jira_key import extract_jira_key; print(extract_jira_key(os.environ.get('PR_TITLE'), os.environ.get('PR_BRANCH'), os.environ.get('PR_BODY')) or '')")
-          echo "key=$KEY" >> "$GITHUB_OUTPUT"
-          if [ -z "$KEY" ]; then
-            echo "No Jira key in title/branch/body — skipping review (safe)."
+          # Company policy: exactly one Jira key in the PR title (1 ticket ↔ 1 PR).
+          # Branch/body are fallback only when title has zero keys.
+          EVAL=$(PYTHONPATH=src python - <<'PY'
+          import os
+          from provepr.jira_key import extract_jira_key, primary_jira_key_from_title
+          title = os.environ.get("PR_TITLE") or ""
+          branch = os.environ.get("PR_BRANCH") or ""
+          body = os.environ.get("PR_BODY") or ""
+          primary, title_keys = primary_jira_key_from_title(title)
+          if len(title_keys) > 1:
+              print(f"SKIP|multiple|{','.join(title_keys)}")
+          elif primary:
+              print(f"OK|{primary}|title")
+          else:
+              fallback = extract_jira_key(None, branch, body) or ""
+              if fallback:
+                  print(f"OK|{fallback}|fallback")
+              else:
+                  print("SKIP|none|")
+          PY
+          )
+          STATUS=$(echo "$EVAL" | cut -d'|' -f1)
+          KEY=$(echo "$EVAL" | cut -d'|' -f2)
+          SRC=$(echo "$EVAL" | cut -d'|' -f3)
+          if [ "$STATUS" = "OK" ] && [ -n "$KEY" ]; then
+            echo "key=$KEY" >> "$GITHUB_OUTPUT"
+            if [ "$SRC" = "fallback" ]; then
+              echo "Found Jira key via branch/body: $KEY (prefer exactly one key in the PR title)."
+            else
+              echo "Found Jira key in title: $KEY"
+            fi
           else
-            echo "Found Jira key: $KEY"
+            echo "key=" >> "$GITHUB_OUTPUT"
+            if [ "$KEY" = "multiple" ]; then
+              echo "Multiple Jira keys in PR title ($SRC) — company policy is 1 ticket per PR. Skipping review."
+            else
+              echo "No Jira key in title/branch/body — skipping review (safe)."
+            fi
           fi
 
       - name: Run ProvePR review + publish

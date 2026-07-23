@@ -12,6 +12,11 @@ from provepr.config import (
     require_github_settings,
     require_jira_settings,
 )
+from provepr.development_link import (
+    DevelopmentLinkCheck,
+    check_pr_linked_in_development,
+    format_development_advisory,
+)
 from provepr.fetch import resolve_targets
 from provepr.gemini_client import GeminiClient
 from provepr.github_client import GitHubClient
@@ -22,7 +27,8 @@ from provepr.hermes_review import (
     run_hermes_review,
 )
 from provepr.jira_client import JiraClient
-from provepr.jira_text import issue_prd_text
+from provepr.jira_key import extract_jira_keys, primary_jira_key_from_title
+from provepr.jira_text import build_prd_with_subtasks
 from provepr.slack import notify_slack
 
 MAX_PRD_CHARS = 12_000
@@ -101,15 +107,61 @@ Key: {ticket_key}
 """
 
 
-def format_pr_comment(*, ticket_key: str, model: str, review_text: str) -> str:
-    return (
+def format_pr_comment(
+    *,
+    ticket_key: str,
+    model: str,
+    review_text: str,
+    development: DevelopmentLinkCheck | None = None,
+) -> str:
+    parts = [
         "## ProvePR review\n\n"
         f"**Ticket:** `{ticket_key}`  \n"
         f"**Engine:** `{model}`  \n"
         "_Static requirements-vs-diff review (not a runtime / E2E test). "
-        "Start with **TL;DR**; treat Blocker/Major as must-fix before merge._\n\n"
-        "---\n\n"
-        f"{review_text.strip()}\n"
+        "Start with **TL;DR**; treat Blocker/Major as must-fix before merge._\n"
+    ]
+    if development is not None:
+        parts.append("\n" + format_development_advisory(development))
+    parts.append("\n---\n\n")
+    parts.append(f"{review_text.strip()}\n")
+    return "".join(parts)
+
+
+def _check_single_ticket_policy(pr_title: str, ticket_key: str) -> str | None:
+    """
+    Enforce 1 ticket per PR via title keys.
+    Returns an error message if policy violated, else None.
+    """
+    primary, title_keys = primary_jira_key_from_title(pr_title)
+    if len(title_keys) > 1:
+        return (
+            "Company policy: one Jira ticket per PR. "
+            f"Title contains multiple keys ({', '.join(title_keys)}). "
+            "Split the work or keep a single key in the title."
+        )
+    if title_keys and primary and primary.upper() != ticket_key.upper():
+        return (
+            f"PR title key `{primary}` does not match review ticket `{ticket_key}`."
+        )
+    # If title has no key but --ticket was passed (CLI), allow with warning printed by caller
+    return None
+
+
+def _development_check_for_pr(
+    *,
+    jira: JiraClient,
+    issue: dict,
+    pr_number: int,
+    pr_html_url: str | None,
+) -> DevelopmentLinkCheck:
+    prs, err = jira.get_development_pull_requests(issue)
+    if err and not prs:
+        return DevelopmentLinkCheck(status="unavailable", message=err)
+    return check_pr_linked_in_development(
+        pr_number=pr_number,
+        pr_html_url=pr_html_url,
+        pull_requests=prs,
     )
 
 
@@ -119,16 +171,24 @@ def _run_single_shot_gemini(
     pr_number: int,
     ticket_key: str,
     gemini,
+    pr_title: str = "",
+    pr_url: str = "",
 ) -> tuple[str, str]:
     """Return (review_text, engine_label). Prefetch PRD+diff then one Gemini call."""
     gh_settings = require_github_settings()
     with GitHubClient(gh_settings) as gh:
-        pull = gh.get_pull_request(full_name, pr_number)
+        if not pr_title or not pr_url:
+            pull = gh.get_pull_request(full_name, pr_number)
+            pr_title = pr_title or str(pull.get("title") or "")
+            pr_url = pr_url or str(pull.get("html_url") or "")
         diff = gh.get_pull_request_diff(full_name, pr_number)
     with JiraClient(require_jira_settings()) as jira:
         issue = jira.get_issue(ticket_key)
-    prd = issue_prd_text(issue)
+        subtasks = jira.get_subtasks(ticket_key)
+    prd = build_prd_with_subtasks(issue, subtasks)
     resolved_ticket = str(issue.get("key") or ticket_key)
+    if subtasks:
+        print(f"PRD     : parent + {len(subtasks)} subtask(s)")
 
     prd_t, prd_cut = _truncate("PRD", prd, MAX_PRD_CHARS)
     diff_t, diff_cut = _truncate("diff", diff, MAX_DIFF_CHARS)
@@ -137,8 +197,8 @@ def _run_single_shot_gemini(
     print("Calling Gemini once (single-shot fallback)...")
 
     user_prompt = build_user_prompt(
-        pr_title=str(pull.get("title") or ""),
-        pr_url=str(pull.get("html_url") or ""),
+        pr_title=pr_title,
+        pr_url=pr_url,
         ticket_key=resolved_ticket,
         prd=prd,
         diff=diff,
@@ -193,15 +253,40 @@ def run_review(
         print("Re-run with --yes to review, or --yes --post to review and publish.")
         return 0
 
+    # Policy + Development check need PR metadata (cheap; before Gemini spend).
+    try:
+        require_github_settings()
+        require_jira_settings()
+        with GitHubClient(require_github_settings()) as gh:
+            pull = gh.get_pull_request(full_name, pr_number)
+        pr_title = str(pull.get("title") or "")
+        pr_url = str(pull.get("html_url") or "")
+    except httpx.HTTPStatusError as exc:
+        print(f"Review FAIL: HTTP {exc.response.status_code} loading PR")
+        return 1
+    except (httpx.RequestError, ValueError) as exc:
+        print(f"Review FAIL: {exc}")
+        return 1
+
+    title_keys = extract_jira_keys(pr_title)
+    if not title_keys:
+        print(
+            "Policy  : PR title has no Jira key — using --ticket / env "
+            f"({ticket_key}). Prefer exactly one key in the title."
+        )
+    policy_err = _check_single_ticket_policy(pr_title, ticket_key)
+    if policy_err:
+        print(f"Review FAIL: {policy_err}")
+        return 1
+    if len(title_keys) == 1:
+        print(f"Policy  : single ticket in title OK ({title_keys[0]})")
+
     engine_label = f"Hermes + {gemini.model}"
     review_text = ""
 
     try:
         if use_hermes:
             print("Starting Hermes tool loop...")
-            # Ensure GitHub/Jira settings exist before tool calls.
-            require_github_settings()
-            require_jira_settings()
             review_text = run_hermes_review(
                 repo=full_name,
                 pr=pr_number,
@@ -215,6 +300,8 @@ def run_review(
                 pr_number=pr_number,
                 ticket_key=ticket_key,
                 gemini=gemini,
+                pr_title=pr_title,
+                pr_url=pr_url,
             )
     except HermesUnavailableError as exc:
         print(f"Hermes unavailable ({exc}); falling back to single-shot Gemini...")
@@ -224,6 +311,8 @@ def run_review(
                 pr_number=pr_number,
                 ticket_key=ticket_key,
                 gemini=gemini,
+                pr_title=pr_title,
+                pr_url=pr_url,
             )
         except httpx.HTTPStatusError as http_exc:
             detail = ""
@@ -258,11 +347,31 @@ def run_review(
     print("\n--- AI review ---")
     _safe_print(review_text)
 
+    # Non-blocking Development panel check (inform only).
+    development: DevelopmentLinkCheck | None = None
+    try:
+        with JiraClient(require_jira_settings()) as jira:
+            issue = jira.get_issue(ticket_key)
+            development = _development_check_for_pr(
+                jira=jira,
+                issue=issue,
+                pr_number=pr_number,
+                pr_html_url=pr_url,
+            )
+        print(f"\nDev panel: {development.status} — {development.message}")
+    except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:
+        development = DevelopmentLinkCheck(
+            status="unavailable",
+            message=f"Could not check Development panel ({exc.__class__.__name__})",
+        )
+        print(f"\nDev panel: unavailable — {development.message}")
+
     if post:
         comment_body = format_pr_comment(
             ticket_key=ticket_key,
             model=engine_label,
             review_text=review_text,
+            development=development,
         )
         try:
             gh_settings = require_github_settings()

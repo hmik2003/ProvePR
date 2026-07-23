@@ -56,7 +56,12 @@ python -m provepr review --yes --post
 
 **Cost:** `--yes` is required. Hermes may call Gemini **multiple times** (capped at **8** turns). If `hermes-agent` is missing, ProvePR falls back to a single-shot Gemini call.
 
-ProvePR tools only (no terminal/browser): Jira PRD + GitHub PR meta + unified diff.
+ProvePR tools only (no terminal/browser): Jira PRD (parent + subtasks) + GitHub PR meta + unified diff.
+
+**Policies baked in:**
+- **1 ticket ↔ 1 PR** — exactly one Jira key in the PR title (multiple keys skip the Action).
+- **Development panel** — comment advises if the PR is not linked on the Jira ticket; **non-blocking**.
+- **PRD quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` checks Story mandatory sections (Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope). Does **not** block To Do yet.
 
 ---
 

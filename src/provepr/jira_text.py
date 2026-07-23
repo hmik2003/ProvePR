@@ -44,3 +44,28 @@ def issue_prd_text(issue: dict) -> str:
     if body:
         parts.append(body)
     return "\n\n".join(parts).strip()
+
+
+def build_prd_with_subtasks(parent: dict, subtasks: list[dict]) -> str:
+    """Parent PRD plus clearly labeled subtask sections (for thin parents)."""
+    parts: list[str] = []
+    parent_key = str(parent.get("key") or "")
+    parent_block = issue_prd_text(parent)
+    if parent_block:
+        header = f"## Parent ticket {parent_key}".strip()
+        parts.append(f"{header}\n\n{parent_block}" if parent_key else parent_block)
+
+    for child in subtasks:
+        child_key = str(child.get("key") or "?")
+        child_fields = child.get("fields") or {}
+        status = ""
+        st = child_fields.get("status")
+        if isinstance(st, dict):
+            status = str(st.get("name") or "")
+        status_bit = f" ({status})" if status else ""
+        child_block = issue_prd_text(child)
+        if not child_block:
+            continue
+        parts.append(f"## Subtask {child_key}{status_bit}\n\n{child_block}")
+
+    return "\n\n".join(parts).strip()

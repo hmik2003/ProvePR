@@ -6,7 +6,8 @@ ProvePR is designed as a **reviewer service**, not a ticket writer or repo rewri
 
 | System | ProvePR needs | ProvePR must NOT |
 |--------|----------------|------------------|
-| **Jira** | **Read** issue summary/description (`GET /rest/api/3/myself`, `GET /rest/api/3/issue/{key}`) | Create/edit/transition/delete issues, comments, or fields |
+| **Jira** | **Read** issue summary/description/subtasks (`GET /rest/api/3/myself`, `GET /rest/api/3/issue/{key}`); best-effort **Development panel** read (`GET /rest/dev-status/...`) | Create/edit/transition/delete issues, comments, or fields |
+
 | **GitHub** | Read PR + diff; **write PR comments** when `--post` / Action publish | Push code, merge, change settings, delete repos |
 | **Slack** | Optional: DM via bot (`chat:write`, `im:write`) | Post to arbitrary channels unless you later choose that |
 | **Gemini** | Call generate API with your key | N/A |
@@ -22,9 +23,10 @@ ProvePR is designed as a **reviewer service**, not a ticket writer or repo rewri
 
 1. Create a dedicated Atlassian user (e.g. `provepr-bot@company.com`) **or** a bot account.
 2. Grant that account **Browse projects** / view issues only on the boards ProvePR should read (SpatialSense, Sifu, …).
-3. Do **not** grant Create issues, Edit issues, or Administer projects.
-4. Create the API token **as that bot user**.
-5. Put that token in Cloud Run / GitHub Actions secrets — never in git.
+3. Optionally grant **View Development Tools** so ProvePR can advise whether the PR is linked on the ticket Development panel (informational only — never a merge blocker).
+4. Do **not** grant Create issues, Edit issues, or Administer projects.
+5. Create the API token **as that bot user**.
+6. Put that token in Cloud Run / GitHub Actions secrets — never in git.
 
 Demo tickets (PROV-*) were created manually during sandbox setup; that is **not** a ProvePR product feature.
 
