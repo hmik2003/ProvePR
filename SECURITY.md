@@ -1,30 +1,31 @@
 # ProvePR — Security & permissions
 
-ProvePR is designed as a **reviewer service**, not a ticket writer or repo rewriter.
+ProvePR is designed as a **reviewer service**, not a ticket rewriter or status machine.
 
 ## Permission matrix (what ProvePR does)
 
 | System | ProvePR needs | ProvePR must NOT |
 |--------|----------------|------------------|
-| **Jira** | **Read** issue summary/description/subtasks (`GET /rest/api/3/myself`, `GET /rest/api/3/issue/{key}`); best-effort **Development panel** read (`GET /rest/dev-status/...`) | Create/edit/transition/delete issues, comments, or fields |
-
-| **GitHub** | Read PR + diff; **write PR comments** when `--post` / Action publish | Push code, merge, change settings, delete repos |
-| **Slack** | Optional: DM via bot (`chat:write`, `im:write`) | Post to arbitrary channels unless you later choose that |
+| **Jira** | **Read** issue summary/description/subtasks + best-effort Development panel; **write issue comments only** for the soft PRD quality gate | Create/edit/transition/delete issues or fields; bounce tickets backlog ↔ To Do |
+| **GitHub** | Read PR + diff; **write PR comments** when `--post` / Action publish / skip-notify | Push code, merge, change settings, delete repos |
+| **Slack** | Optional: DM via bot (`chat:write`, `im:write`) | Post to product channels unless you later choose that |
 | **Gemini** | Call generate API with your key | N/A |
-| **Cloud Run trigger** | Caller must send `Authorization: Bearer PROVEPR_TRIGGER_SECRET` | Public unauthenticated `/v1/review` |
+| **Cloud Run trigger** | Caller must send `Authorization: Bearer PROVEPR_TRIGGER_SECRET` | Public unauthenticated `/v1/review` or `/v1/prd-gate` |
 
-## Jira: read-only in code (already true)
+## Jira: mostly read; comments only for PRD gate
 
-[`src/provepr/jira_client.py`](src/provepr/jira_client.py) only implements **GET**. There is no create/update API in the product.
+[`src/provepr/jira_client.py`](src/provepr/jira_client.py) exposes **GET** helpers plus **`add_comment`** for the Story PRD gate.
 
-**Important:** A Jira API token inherits **whatever your Atlassian user can do**. Code being read-only is not enough if the human account can create tickets.
+ProvePR **never** transitions issues (no moving To Do → Backlog). Soft gate only.
+
+**Important:** A Jira API token inherits **whatever your Atlassian user can do**. Prefer a bot that can **Browse + Comment** but not Edit/Transition.
 
 ### Recommended company setup
 
 1. Create a dedicated Atlassian user (e.g. `provepr-bot@company.com`) **or** a bot account.
-2. Grant that account **Browse projects** / view issues only on the boards ProvePR should read (SpatialSense, Sifu, …).
-3. Optionally grant **View Development Tools** so ProvePR can advise whether the PR is linked on the ticket Development panel (informational only — never a merge blocker).
-4. Do **not** grant Create issues, Edit issues, or Administer projects.
+2. Grant **Browse projects** + **Add comments** on boards ProvePR should review.
+3. Optionally grant **View Development Tools** for Development-panel advisory on PRs.
+4. Do **not** grant Create issues, Edit issues, Transition issues, or Administer projects.
 5. Create the API token **as that bot user**.
 6. Put that token in Cloud Run / GitHub Actions secrets — never in git.
 
@@ -45,7 +46,7 @@ The Docker image must **not** contain `.env`. Cloud Run / Actions inject secrets
 
 ## Trigger secret
 
-`PROVEPR_TRIGGER_SECRET` protects `POST /v1/review`. Treat it like a password. Rotate if leaked.
+`PROVEPR_TRIGGER_SECRET` protects `POST /v1/review` and `POST /v1/prd-gate`. Treat it like a password. Rotate if leaked.
 
 ## If a token was pasted in chat
 

@@ -1,4 +1,4 @@
-"""Read-only Jira Cloud REST helpers for ProvePR."""
+"""Jira Cloud REST helpers for ProvePR (reads + PRD-gate comments only)."""
 
 from __future__ import annotations
 
@@ -147,6 +147,21 @@ class JiraClient:
             pass
 
         return [], last_err or "Could not read Development panel"
+
+    def add_comment(self, key: str, body_adf: dict) -> dict:
+        """
+        Post a comment on an issue (ADF body).
+
+        Used only by the soft PRD quality gate for PMs — never transitions
+        or edits fields. Prefer a bot account with Comment issues only.
+        """
+        response = self._client.post(
+            f"/rest/api/3/issue/{key}/comment",
+            json={"body": body_adf},
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 def _extract_pull_requests(payload: object) -> list[dict]:

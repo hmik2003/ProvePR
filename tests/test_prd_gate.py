@@ -93,3 +93,23 @@ def test_format_report_mentions_soft_gate():
     text = format_prd_gate_report(result)
     assert "Needs work" in text
     assert "soft gate" in text.lower() or "Soft gate" in text
+    assert "backlog" in text.lower()
+
+
+def test_format_jira_adf_and_slack():
+    from provepr.prd_gate import format_prd_gate_jira_adf, format_prd_gate_slack
+
+    result = evaluate_prd_gate(
+        ticket_key="PROV-10",
+        issue_type="Story",
+        status="To Do",
+        prd_text=RICH_PRD,
+    )
+    adf = format_prd_gate_jira_adf(result)
+    assert adf["type"] == "doc"
+    assert any(
+        n.get("type") == "heading" for n in adf["content"]
+    )
+    slack = format_prd_gate_slack(result)
+    assert "Ready" in slack
+    assert "backlog" in slack.lower()

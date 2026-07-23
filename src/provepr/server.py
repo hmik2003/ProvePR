@@ -1,14 +1,15 @@
-"""Sprint 6 — HTTP trigger for ProvePR reviews."""
+"""Sprint 6 — HTTP trigger for ProvePR reviews + PRD gate."""
 
 from __future__ import annotations
 
 import os
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from provepr.config import load_env
+from provepr.prd_gate_cli import execute_prd_gate
 from provepr.review import run_review
 
 app = FastAPI(title="ProvePR", version="0.1.0")
@@ -25,6 +26,24 @@ class ReviewResponse(BaseModel):
     ok: bool
     exit_code: int
     detail: str
+
+
+class PrdGateRequest(BaseModel):
+    """CLI-style body or loose Jira Automation webhook fields."""
+
+    ticket: str | None = None
+    issue: dict[str, Any] | None = None
+    comment: bool = True
+    notify: bool = True
+
+
+class PrdGateResponse(BaseModel):
+    ok: bool
+    ticket_key: str = ""
+    verdict: str = ""
+    skipped: bool = False
+    detail: str = ""
+    jira_commented: bool = False
 
 
 def _expected_secret() -> str:
@@ -44,6 +63,19 @@ def _authorize(authorization: str | None) -> None:
     token = authorization.removeprefix("Bearer ").strip()
     if token != expected:
         raise HTTPException(status_code=403, detail="Invalid token")
+
+
+def _ticket_from_prd_gate_body(body: PrdGateRequest) -> str:
+    if body.ticket and str(body.ticket).strip():
+        return str(body.ticket).strip()
+    if isinstance(body.issue, dict):
+        key = body.issue.get("key")
+        if key:
+            return str(key).strip()
+    raise HTTPException(
+        status_code=422,
+        detail="Provide ticket (e.g. PROV-10) or issue.key from Jira Automation",
+    )
 
 
 @app.get("/health")
@@ -89,10 +121,47 @@ def trigger_review(
     )
 
 
+@app.post("/v1/prd-gate", response_model=PrdGateResponse)
+def trigger_prd_gate(
+    body: PrdGateRequest,
+    authorization: Annotated[str | None, Header()] = None,
+) -> PrdGateResponse:
+    """
+    Soft Story PRD quality gate for Jira Automation (Story → To Do).
+
+    Leaves a Jira comment for PMs + Slack DM for QA. Never transitions the ticket.
+    """
+    _authorize(authorization)
+    ticket = _ticket_from_prd_gate_body(body)
+    try:
+        run = execute_prd_gate(
+            ticket=ticket,
+            comment=body.comment,
+            notify=body.notify,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — surface cleanly to caller
+        raise HTTPException(
+            status_code=502,
+            detail=f"PRD gate failed: {exc.__class__.__name__}: {exc}",
+        ) from exc
+
+    result = run.result
+    return PrdGateResponse(
+        ok=True,
+        ticket_key=result.ticket_key,
+        verdict=result.verdict,
+        skipped=result.skipped,
+        detail=result.skip_reason or f"{result.present_count}/{result.mandatory_total}",
+        jira_commented=bool(run.jira_comment_url)
+        or (body.comment and not result.skipped),
+    )
+
+
 def run_server() -> int:
     """Start uvicorn. Cloud Run uses PORT; local uses PROVEPR_HTTP_*."""
     load_env()
-    # Cloud Run / Docker: bind all interfaces. Local default stays loopback unless HOST set.
     host = (
         os.getenv("PROVEPR_HTTP_HOST")
         or os.getenv("HOST")
@@ -117,7 +186,14 @@ def run_server() -> int:
 
     print("=== ProvePR — HTTP serve ===")
     print(f"Listening on http://{host}:{port}")
-    print("Endpoints: GET /health  POST /v1/review (Bearer PROVEPR_TRIGGER_SECRET)")
+    print(
+        "Endpoints: GET /health  POST /v1/review  POST /v1/prd-gate "
+        "(Bearer PROVEPR_TRIGGER_SECRET)"
+    )
     print("Each POST /v1/review runs Hermes+Gemini (capped) or single-shot fallback.")
+    print(
+        "POST /v1/prd-gate = soft Story PRD check "
+        "(Jira comment + Slack; no transitions)."
+    )
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0

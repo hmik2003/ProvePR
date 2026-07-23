@@ -50,8 +50,8 @@ def test_get_myself_401():
         assert exc.response.status_code == 401
 
 
-def test_jira_client_exposes_only_read_methods():
-    """Security: product must not grow accidental Jira write helpers."""
+def test_jira_client_exposes_only_allowed_methods():
+    """Security: no issue create/edit/transition; comments allowed for PRD gate only."""
     allowed = {
         "__init__",
         "close",
@@ -61,6 +61,7 @@ def test_jira_client_exposes_only_read_methods():
         "get_issue",
         "get_subtasks",
         "get_development_pull_requests",
+        "add_comment",
     }
     methods = {
         name
@@ -73,12 +74,12 @@ def test_jira_client_exposes_only_read_methods():
         "get_issue",
         "get_subtasks",
         "get_development_pull_requests",
+        "add_comment",
     } <= methods
     forbidden = {
         "create_issue",
         "update_issue",
         "delete_issue",
-        "add_comment",
         "transition_issue",
     }
     assert not (forbidden & set(dir(JiraClient)))
@@ -157,3 +158,19 @@ def test_get_development_pull_requests_forbidden():
     assert prs == []
     assert err is not None
     assert "Development" in err
+
+
+@respx.mock
+def test_add_comment_ok():
+    respx.post("https://acme.atlassian.net/rest/api/3/issue/PROV-10/comment").mock(
+        return_value=httpx.Response(
+            201,
+            json={"id": "100", "self": "https://acme.atlassian.net/rest/api/3/issue/100/comment/100"},
+        )
+    )
+    client = JiraClient(_settings())
+    posted = client.add_comment(
+        "PROV-10",
+        {"type": "doc", "version": 1, "content": []},
+    )
+    assert posted["id"] == "100"

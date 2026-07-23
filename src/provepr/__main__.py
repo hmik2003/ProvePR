@@ -79,13 +79,18 @@ def main(argv: list[str] | None = None) -> int:
 
     gate_parser = sub.add_parser(
         "prd-gate",
-        help="Soft PRD quality gate for Story tickets (mandatory sections)",
+        help="Soft PRD quality gate for Story tickets (Jira comment + Slack; no transitions)",
     )
     gate_parser.add_argument("--ticket", required=True, help="Jira issue key (e.g. PROV-10)")
     gate_parser.add_argument(
-        "--notify",
+        "--no-notify",
         action="store_true",
-        help="Also send the gate report to Slack (if configured)",
+        help="Do not Slack-DM the gate verdict (default: notify QA)",
+    )
+    gate_parser.add_argument(
+        "--no-comment",
+        action="store_true",
+        help="Do not leave a Jira ticket comment for PMs (default: comment)",
     )
 
     skip_parser = sub.add_parser(
@@ -146,7 +151,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "prd-gate":
-        return run_prd_gate(ticket=args.ticket, notify=args.notify)
+        return run_prd_gate(
+            ticket=args.ticket,
+            notify=not args.no_notify,
+            comment=not args.no_comment,
+        )
 
     if args.command == "skip-notify":
         return run_skip_notify(
