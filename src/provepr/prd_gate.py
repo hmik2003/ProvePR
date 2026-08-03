@@ -151,7 +151,7 @@ def evaluate_prd_gate(
 def format_prd_gate_report(result: PrdGateResult) -> str:
     """Human-readable report for CLI / Slack."""
     lines = [
-        f"### ProvePR PRD gate — `{result.ticket_key}`",
+        f"### KodiQA PRD gate — `{result.ticket_key}`",
         f"- Type: {result.issue_type}  |  Status: {result.status}",
         f"- Subtasks included in score: {result.subtask_count}",
     ]
@@ -185,7 +185,7 @@ def format_prd_gate_report(result: PrdGateResult) -> str:
     lines.append("")
     lines.append(
         "_Soft gate: informational only. Ticket stays in To Do — "
-        "ProvePR does not move it back to backlog._"
+        "KodiQA does not move it back to backlog._"
     )
     return "\n".join(lines) + "\n"
 
@@ -194,12 +194,12 @@ def format_prd_gate_slack(result: PrdGateResult) -> str:
     """Short Slack DM for QA lead."""
     if result.skipped:
         return (
-            f"ProvePR PRD gate skipped `{result.ticket_key}` "
+            f"KodiQA PRD gate skipped `{result.ticket_key}` "
             f"({result.issue_type}): {result.skip_reason}"
         )
     missing = [s.name for s in result.mandatory if not s.present]
     lines = [
-        f"ProvePR PRD gate — {result.ticket_key}",
+        f"KodiQA PRD gate — {result.ticket_key}",
         f"Verdict: {result.verdict} "
         f"({result.present_count}/{result.mandatory_total} mandatory)",
         f"Status: {result.status} | Type: {result.issue_type}",
@@ -246,7 +246,7 @@ def _adf_bullet(items: list[str]) -> dict:
 def format_prd_gate_jira_adf(result: PrdGateResult) -> dict:
     """Atlassian Document Format body for a PM-facing ticket comment."""
     nodes: list[dict] = [
-        _adf_heading("ProvePR PRD quality gate", 2),
+        _adf_heading("KodiQA PRD quality gate", 2),
         _adf_paragraph(
             f"Ticket: {result.ticket_key}  |  Type: {result.issue_type}  |  "
             f"Status: {result.status}"
@@ -258,7 +258,7 @@ def format_prd_gate_jira_adf(result: PrdGateResult) -> dict:
         nodes.append(_adf_paragraph(f"Verdict: Skipped — {result.skip_reason}"))
         nodes.append(
             _adf_paragraph(
-                "Soft gate only. ProvePR never transitions this ticket."
+                "Soft gate only. KodiQA never transitions this ticket."
             )
         )
         return {"type": "doc", "version": 1, "content": nodes}
@@ -286,7 +286,7 @@ def format_prd_gate_jira_adf(result: PrdGateResult) -> dict:
         nodes.append(
             _adf_paragraph(
                 "This is a soft check for PMs/POs. The ticket stays in To Do — "
-                "ProvePR does not move it back to backlog."
+                "KodiQA does not move it back to backlog."
             )
         )
     else:
@@ -308,7 +308,7 @@ def format_prd_gate_jira_adf(result: PrdGateResult) -> dict:
     )
     nodes.append(
         _adf_paragraph(
-            "Soft gate: informational only. No status change by ProvePR."
+            "Soft gate: informational only. No status change by KodiQA."
         )
     )
     return {"type": "doc", "version": 1, "content": nodes}

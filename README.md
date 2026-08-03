@@ -134,3 +134,4 @@ pytest -q
 2. Never commit `.env`
 3. Do not paste token values into chat
 4. Follow least privilege in [`SECURITY.md`](./SECURITY.md) (Jira browse-only bot; GitHub comment-only write)
+5. Prefer **KodiQA GitHub App** for PR comments — see [`docs/KODIQA_GITHUB_APP.md`](./docs/KODIQA_GITHUB_APP.md)

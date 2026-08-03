@@ -13,7 +13,7 @@ def test_format_skip_message_no_key():
         title="chore: no ticket",
         pr_url="https://github.com/hmik2003/provepr-demo-shop/pull/12",
     )
-    assert "skipped review" in text.lower() or "Skip" in text or "skipped" in text
+    assert "KodiQA skipped" in text.lower() or "Skip" in text or "skipped" in text
     assert "provepr-demo-shop#12" in text
     assert "No Jira ticket key" in text
     assert "Gemini" in text
@@ -32,7 +32,7 @@ def test_format_skip_message_multiple():
 
 def test_format_skip_pr_comment_none():
     body = format_skip_pr_comment(reason="none")
-    assert "ProvePR skipped" in body
+    assert "KodiQA skipped" in body
     assert "no Gemini" in body.lower() or "Gemini" in body
 
 
@@ -48,7 +48,7 @@ def test_run_skip_notify_slack_and_comment(monkeypatch):
 
         def create_issue_comment(self, repo, pr, body):
             calls["comment"] += 1
-            assert "ProvePR skipped" in body
+            assert "KodiQA skipped" in body
             return {"html_url": "http://comment"}
 
     monkeypatch.setattr("provepr.skip_notify.load_env", lambda: None)

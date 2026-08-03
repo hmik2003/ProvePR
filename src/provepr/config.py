@@ -65,6 +65,39 @@ def missing_keys(keys: tuple[str, ...]) -> list[str]:
 @dataclass(frozen=True)
 class GitHubSettings:
     token: str
+    auth_mode: str = "pat"  # pat | app
+
+
+def require_github_settings() -> GitHubSettings:
+    """
+    Prefer GitHub App credentials (KodiQA[bot]) when configured; else GITHUB_TOKEN PAT.
+
+    App env (all three required together):
+      GITHUB_APP_ID
+      GITHUB_APP_INSTALLATION_ID
+      GITHUB_APP_PRIVATE_KEY
+    """
+    load_env()
+    app_id = (os.getenv("GITHUB_APP_ID") or "").strip()
+    installation_id = (os.getenv("GITHUB_APP_INSTALLATION_ID") or "").strip()
+    private_key = (os.getenv("GITHUB_APP_PRIVATE_KEY") or "").strip()
+    if app_id and installation_id and private_key:
+        from provepr.github_app import create_installation_access_token
+
+        token = create_installation_access_token(
+            app_id=app_id,
+            private_key_pem=private_key,
+            installation_id=installation_id,
+        )
+        return GitHubSettings(token=token, auth_mode="app")
+
+    missing = missing_keys(("GITHUB_TOKEN",))
+    if missing:
+        raise ValueError(
+            "Missing GitHub auth: set GITHUB_TOKEN, or GitHub App env "
+            "(GITHUB_APP_ID + GITHUB_APP_INSTALLATION_ID + GITHUB_APP_PRIVATE_KEY)"
+        )
+    return GitHubSettings(token=os.environ["GITHUB_TOKEN"].strip(), auth_mode="pat")
 
 
 @dataclass(frozen=True)
@@ -76,14 +109,6 @@ class JiraSettings:
 
 def normalize_jira_base_url(url: str) -> str:
     return url.strip().rstrip("/")
-
-
-def require_github_settings() -> GitHubSettings:
-    load_env()
-    missing = missing_keys(("GITHUB_TOKEN",))
-    if missing:
-        raise ValueError(f"Missing required env: {', '.join(missing)}")
-    return GitHubSettings(token=os.environ["GITHUB_TOKEN"].strip())
 
 
 def require_jira_settings() -> JiraSettings:

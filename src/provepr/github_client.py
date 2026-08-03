@@ -23,7 +23,7 @@ class GitHubClient:
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {settings.token}",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "ProvePR",
+                "User-Agent": "KodiQA",
             },
             timeout=30.0,
         )

@@ -26,6 +26,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Mint KodiQA GitHub App token
+        id: kodiqa
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.KODIQA_APP_ID }}
+          private-key: ${{ secrets.KODIQA_APP_PRIVATE_KEY }}
+
       - name: Extract Jira key
         id: jira
         env:
@@ -82,7 +90,7 @@ jobs:
       - name: Notify QA — review skipped
         if: steps.jira.outputs.key == ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.kodiqa.outputs.token || secrets.GITHUB_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_DM_USER_ID: ${{ secrets.SLACK_DM_USER_ID }}
           PYTHONPATH: src
@@ -95,10 +103,10 @@ jobs:
             --title "${{ github.event.pull_request.title }}" \
             --pr-url "${{ github.event.pull_request.html_url }}"
 
-      - name: Run ProvePR review + publish
+      - name: Run KodiQA review + publish
         if: steps.jira.outputs.key != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.kodiqa.outputs.token || secrets.GITHUB_TOKEN }}
           JIRA_SERVER_URL: ${{ secrets.JIRA_SERVER_URL }}
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}

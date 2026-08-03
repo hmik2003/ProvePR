@@ -115,7 +115,7 @@ def format_pr_comment(
     development: DevelopmentLinkCheck | None = None,
 ) -> str:
     parts = [
-        "## ProvePR review\n\n"
+        "## KodiQA review\n\n"
         f"**Ticket:** `{ticket_key}`  \n"
         f"**Engine:** `{model}`  \n"
         "_Static requirements-vs-diff review (not a runtime / E2E test). "
@@ -387,7 +387,7 @@ def run_review(
             return 1
 
         slack_text = (
-            f"ProvePR review on {full_name}#{pr_number} ({ticket_key})\n"
+            f"KodiQA review on {full_name}#{pr_number} ({ticket_key})\n"
             f"{comment_url}"
         )
         try:

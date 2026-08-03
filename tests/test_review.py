@@ -259,7 +259,7 @@ def test_run_review_yes_post_github_and_slack_stub(monkeypatch):
 
         def create_issue_comment(self, full_name, number, body):
             calls["comment"] += 1
-            assert "ProvePR review" in body
+            assert "KodiQA review" in body
             assert "Development panel" in body
             assert "Hermes" in body or "single-shot" in body or "gemini" in body.lower()
             return {"html_url": "http://comment"}

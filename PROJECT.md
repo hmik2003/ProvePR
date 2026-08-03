@@ -161,8 +161,35 @@ If no Jira ID is found on a PR, the Action skips the review (safe failure) and n
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | **Done** |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **Done** |
 | **Hermes + Docker** | Hermes tool loop + single Dockerfile for Cloud Run | No (local Docker) | **Done** |
-| **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — GCP project + gcloud** | **In progress** (scripts ready; live deploy blocked on access) |
+| **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — billing on project** | **Blocked** — project `kodifly-qa-automations` (name: qa-automations); gcloud OK as `ibrahim.kayani@kodifly.com`; needs **billing linked** then deploy |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
+
+### Monday next (2026-07-24 handoff — resume here)
+
+**Order of work when you return:**
+
+1. **Confirm billing** on `kodifly-qa-automations` (supervisor links billing account).
+2. **Refresh secrets before Cloud Run env set** (treat as mandatory — tokens may have short TTL / rotation):
+   - New `PROVEPR_TRIGGER_SECRET` (long random)
+   - Confirm / renew `GITHUB_TOKEN`, `JIRA_API_TOKEN`, `GOOGLE_API_KEY` / Gemini
+   - Confirm Slack bot still DMs (`SLACK_BOT_TOKEN`, `SLACK_DM_USER_ID`)
+   - Jira bot: Browse + **Add comments** (PRD gate); never transition issues
+3. **Deploy** `.\scripts\deploy-cloud-run.ps1 -ProjectId "kodifly-qa-automations"`
+4. **Set Cloud Run env vars** from refreshed `.env` (never bake into image)
+5. **Bulletproof smoke:** `GET /health`, `POST /v1/prd-gate` (Story), `POST /v1/review` (known demo PR)
+6. **Optional auto-redeploy:** Cloud Build trigger on `master` push (so GCP stays in sync without supervisor)
+7. **Jira Automation:** Story → To Do → `POST /v1/prd-gate`
+8. **Extend ticket gates** beyond Story (design locked below — implement after Cloud Run is stable)
+
+**Both product surfaces on the same image:** Devs = `/v1/review` (+ Actions); PMs = `/v1/prd-gate` (soft, no backlog bounce).
+
+#### Proposed ticket-type gates (not built yet)
+
+| Type | When | Mandatory (soft) | Notes |
+|------|------|------------------|--------|
+| **Story** | → To Do | Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope | Live today (CLI + API) |
+| **Bug** | → To Do (or “Ready”) | Issue type/component signal, **Description**, **Steps to reproduce**, **Expected**, **Actual**, **Environment** (attachments recommended) | Match QA bar like SIFU-FE-BUG-004 style; **exclude reporter = you** if you want (configurable email/accountId) so your already-rich bugs aren’t nagged |
+| **Task** | → To Do | **Goal (1–2 lines)**, **Done when** (1–3 bullets), **Scope / out of scope** (short) | Keep light — Tasks are small; do **not** demand full Story PRD |
 
 ---
 
@@ -279,4 +306,4 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-23 | Security cleanup | Documented least-privilege in SECURITY.md; Jira remains GET-only in code; clarified GitHub comment-write vs no push; bot-account guidance for company Jira |
 | 2026-07-23 | Development advisory | Non-blocking check: is this PR linked on the Jira Development panel? Comment asks author to link if missing; never blocks. Subtasks included in PRD text. Title policy: exactly one Jira key (1 ticket ↔ 1 PR). |
 | 2026-07-23 | PRD quality gate (soft) | CLI `python -m provepr prd-gate --ticket KEY` for **Story** tickets: mandatory Goals/Persona/User stories/Functional reqs/AC/Success metrics/Scope; scores parent+subtasks; Ready vs Needs work; never blocks. Webhook on To Do later. |
-| 2026-07-23 | PRD gate publish | Default: Jira **comment for PMs** + Slack DM for QA; `POST /v1/prd-gate` for Automation (Story → To Do). **Never** transitions tickets back to backlog. |
+| 2026-07-24 | GCP handoff | Login OK (`ibrahim.kayani@kodifly.com`); project **qa-automations** / ID `kodifly-qa-automations`; deploy blocked on **billing**. Monday: refresh secrets → deploy → smoke → Automation; later Bug/Task soft gates. |

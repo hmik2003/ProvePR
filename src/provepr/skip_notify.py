@@ -36,7 +36,7 @@ def format_skip_message(
         )
 
     lines = [
-        "ProvePR skipped review (saved Gemini spend)",
+        "KodiQA skipped review (saved Gemini spend)",
         "",
         f"Repo: {repo}#{pr}",
     ]
@@ -66,7 +66,7 @@ def format_skip_pr_comment(
         fix = "Add a key like `PROV-10: …` to the title, then push / re-open."
 
     return (
-        "## ProvePR skipped\n\n"
+        "## KodiQA skipped\n\n"
         f"{body_why}\n\n"
         "Review was **not** run (no Gemini spend). "
         "QA has been notified to look into it.\n\n"
