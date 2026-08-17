@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from provepr import server as server_mod
+from provepr.pr_hook import decide_pr_ticket
 
 
 def test_health():
@@ -103,7 +104,7 @@ def test_prd_gate_accepts_jira_automation_shape(monkeypatch):
         mandatory_total = 7
 
     def fake_exec(**kw):
-        seen["ticket"] = kw["ticket"]
+        seen.update(kw)
         return type(
             "R",
             (),
@@ -120,8 +121,71 @@ def test_prd_gate_accepts_jira_automation_shape(monkeypatch):
     response = client.post(
         "/v1/prd-gate",
         headers={"Authorization": "Bearer secret-test"},
-        json={"issue": {"key": "PROV-8"}},
+        json={"issue": {"key": "PROV-8"}, "trigger": "in_progress"},
     )
     assert response.status_code == 200
     assert seen["ticket"] == "PROV-8"
+    assert seen["trigger"] == "in_progress"
     assert response.json()["verdict"] == "Needs work"
+
+
+def test_decide_pr_ticket_policy():
+    assert decide_pr_ticket(title="PROV-18: limit").action == "review"
+    assert decide_pr_ticket(title="PROV-1 and PROV-2").action == "skip"
+    assert decide_pr_ticket(title="no key", branch="feature/PROV-9-x").ticket == "PROV-9"
+    assert decide_pr_ticket(title="chore").action == "skip"
+
+
+def test_pr_hook_reviews(monkeypatch):
+    monkeypatch.setattr(server_mod, "load_env", lambda: None)
+    monkeypatch.setenv("PROVEPR_TRIGGER_SECRET", "secret-test")
+    seen = {}
+
+    def fake_review(**kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(server_mod, "run_review", fake_review)
+    client = TestClient(server_mod.app)
+    response = client.post(
+        "/v1/pr-hook",
+        headers={"Authorization": "Bearer secret-test"},
+        json={
+            "repo": "hmik2003/provepr-demo-shop",
+            "pr": 13,
+            "title": "PROV-18: Catalog limit",
+            "post": True,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["action"] == "review"
+    assert body["ticket_key"] == "PROV-18"
+    assert seen["ticket"] == "PROV-18"
+    assert seen["post"] is True
+
+
+def test_pr_hook_skips(monkeypatch):
+    monkeypatch.setattr(server_mod, "load_env", lambda: None)
+    monkeypatch.setenv("PROVEPR_TRIGGER_SECRET", "secret-test")
+    called = {}
+
+    def fake_skip(**kwargs):
+        called.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(server_mod, "run_skip_notify", fake_skip)
+    client = TestClient(server_mod.app)
+    response = client.post(
+        "/v1/pr-hook",
+        headers={"Authorization": "Bearer secret-test"},
+        json={
+            "repo": "hmik2003/provepr-demo-shop",
+            "pr": 12,
+            "title": "chore: no ticket",
+            "post": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["action"] == "skip"
+    assert called["reason"] == "none"

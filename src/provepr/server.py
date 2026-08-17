@@ -1,4 +1,4 @@
-"""Sprint 6 — HTTP trigger for ProvePR reviews + PRD gate."""
+"""HTTP triggers: review, PR hook, skip-notify, PRD gate."""
 
 from __future__ import annotations
 
@@ -9,8 +9,10 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from provepr.config import load_env
+from provepr.pr_hook import decide_pr_ticket
 from provepr.prd_gate_cli import execute_prd_gate
 from provepr.review import run_review
+from provepr.skip_notify import run_skip_notify
 
 app = FastAPI(title="ProvePR", version="0.1.0")
 
@@ -28,6 +30,42 @@ class ReviewResponse(BaseModel):
     detail: str
 
 
+class SkipNotifyRequest(BaseModel):
+    repo: str
+    pr: int
+    reason: str = "none"
+    title: str = ""
+    pr_url: str = ""
+    detail: str = ""
+    comment: bool = True
+
+
+class SkipNotifyResponse(BaseModel):
+    ok: bool
+    exit_code: int
+    detail: str
+
+
+class PrHookRequest(BaseModel):
+    """Thin GitHub Action payload — Cloud Run decides review vs skip."""
+
+    repo: str
+    pr: int
+    title: str = ""
+    body: str = ""
+    branch: str = ""
+    pr_url: str = ""
+    post: bool = True
+
+
+class PrHookResponse(BaseModel):
+    ok: bool
+    action: str = ""  # review | skip
+    ticket_key: str = ""
+    exit_code: int = 0
+    detail: str = ""
+
+
 class PrdGateRequest(BaseModel):
     """CLI-style body or loose Jira Automation webhook fields."""
 
@@ -35,6 +73,8 @@ class PrdGateRequest(BaseModel):
     issue: dict[str, Any] | None = None
     comment: bool = True
     notify: bool = True
+    # to_do | in_progress | manual — in_progress skips if prior gate already Ready
+    trigger: str | None = None
 
 
 class PrdGateResponse(BaseModel):
@@ -127,9 +167,10 @@ def trigger_prd_gate(
     authorization: Annotated[str | None, Header()] = None,
 ) -> PrdGateResponse:
     """
-    Soft Story PRD quality gate for Jira Automation (Story → To Do).
+    Soft Story / Bug / Task quality gate for Jira Automation.
 
-    Leaves a Jira comment for PMs + Slack DM for QA. Never transitions the ticket.
+    Leaves a Jira comment + Slack DM for QA. Never transitions the ticket.
+    Pass trigger=in_progress for the Bug/Task safety net (dedupes Ready).
     """
     _authorize(authorization)
     ticket = _ticket_from_prd_gate_body(body)
@@ -138,6 +179,7 @@ def trigger_prd_gate(
             ticket=ticket,
             comment=body.comment,
             notify=body.notify,
+            trigger=(body.trigger or ""),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -156,6 +198,89 @@ def trigger_prd_gate(
         detail=result.skip_reason or f"{result.present_count}/{result.mandatory_total}",
         jira_commented=bool(run.jira_comment_url)
         or (body.comment and not result.skipped),
+    )
+
+
+@app.post("/v1/skip-notify", response_model=SkipNotifyResponse)
+def trigger_skip_notify(
+    body: SkipNotifyRequest,
+    authorization: Annotated[str | None, Header()] = None,
+) -> SkipNotifyResponse:
+    """Slack + optional PR comment when a review is skipped (no Gemini)."""
+    _authorize(authorization)
+    code = run_skip_notify(
+        repo=body.repo,
+        pr=body.pr,
+        reason=body.reason,
+        title=body.title,
+        pr_url=body.pr_url,
+        detail=body.detail,
+        comment=body.comment,
+    )
+    return SkipNotifyResponse(
+        ok=code == 0,
+        exit_code=code,
+        detail="Skip notify completed" if code == 0 else "Skip notify failed",
+    )
+
+
+@app.post("/v1/pr-hook", response_model=PrHookResponse)
+def trigger_pr_hook(
+    body: PrHookRequest,
+    authorization: Annotated[str | None, Header()] = None,
+) -> PrHookResponse:
+    """
+    Thin multi-repo entrypoint: extract Jira key → review or skip-notify.
+
+    GitHub Actions only need PROVEPR_URL + PROVEPR_TRIGGER_SECRET.
+    """
+    _authorize(authorization)
+    if not body.repo or "/" not in body.repo:
+        raise HTTPException(status_code=422, detail="repo owner/name is required")
+    if body.pr < 1:
+        raise HTTPException(status_code=422, detail="pr must be a positive integer")
+
+    decision = decide_pr_ticket(
+        title=body.title, branch=body.branch, body=body.body
+    )
+    if decision.action == "skip":
+        code = run_skip_notify(
+            repo=body.repo,
+            pr=body.pr,
+            reason=decision.skip_reason or "none",
+            title=body.title,
+            pr_url=body.pr_url,
+            detail=decision.skip_detail,
+            comment=True,
+        )
+        return PrHookResponse(
+            ok=code == 0,
+            action="skip",
+            ticket_key="",
+            exit_code=code,
+            detail=(
+                f"Skipped ({decision.skip_reason}"
+                + (f": {decision.skip_detail}" if decision.skip_detail else "")
+                + ")"
+            ),
+        )
+
+    code = run_review(
+        repo=body.repo,
+        pr=body.pr,
+        ticket=decision.ticket,
+        yes=True,
+        post=body.post,
+    )
+    return PrHookResponse(
+        ok=code == 0,
+        action="review",
+        ticket_key=decision.ticket,
+        exit_code=code,
+        detail=(
+            f"Review via {decision.source}"
+            + (" published" if body.post and code == 0 else "")
+        ),
     )
 
 
@@ -187,13 +312,11 @@ def run_server() -> int:
     print("=== ProvePR — HTTP serve ===")
     print(f"Listening on http://{host}:{port}")
     print(
-        "Endpoints: GET /health  POST /v1/review  POST /v1/prd-gate "
+        "Endpoints: GET /health  POST /v1/pr-hook  POST /v1/review  "
+        "POST /v1/skip-notify  POST /v1/prd-gate "
         "(Bearer PROVEPR_TRIGGER_SECRET)"
     )
-    print("Each POST /v1/review runs Hermes+Gemini (capped) or single-shot fallback.")
-    print(
-        "POST /v1/prd-gate = soft Story PRD check "
-        "(Jira comment + Slack; no transitions)."
-    )
+    print("Thin Actions: POST /v1/pr-hook (review or skip).")
+    print("PM Automation: POST /v1/prd-gate (Story/Bug/Task soft gate).")
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0

@@ -138,3 +138,17 @@ def require_gemini_settings() -> GeminiSettings:
     api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
     model = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
     return GeminiSettings(api_key=api_key, model=model)
+
+
+def bug_skip_reporter_emails() -> tuple[str, ...]:
+    """
+    Comma-separated reporter emails whose Bugs skip the soft quality gate.
+
+    Env: PRD_GATE_BUG_SKIP_REPORTER_EMAILS
+    Example: ibrahim.kayani@kodifly.com
+    """
+    load_env()
+    raw = (os.getenv("PRD_GATE_BUG_SKIP_REPORTER_EMAILS") or "").strip()
+    if not raw:
+        return ()
+    return tuple(part.strip() for part in raw.split(",") if part.strip())

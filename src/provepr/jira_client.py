@@ -148,6 +148,19 @@ class JiraClient:
 
         return [], last_err or "Could not read Development panel"
 
+    def list_comments(self, key: str, *, max_results: int = 50) -> list[dict]:
+        """Return recent issue comments (newest last). Read-only."""
+        response = self._client.get(
+            f"/rest/api/3/issue/{key}/comment",
+            params={"maxResults": max_results, "orderBy": "created"},
+        )
+        response.raise_for_status()
+        data = response.json()
+        comments = data.get("comments") if isinstance(data, dict) else None
+        if not isinstance(comments, list):
+            return []
+        return [c for c in comments if isinstance(c, dict)]
+
     def add_comment(self, key: str, body_adf: dict) -> dict:
         """
         Post a comment on an issue (ADF body).

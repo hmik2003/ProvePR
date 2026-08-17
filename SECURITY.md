@@ -10,11 +10,11 @@ ProvePR is designed as a **reviewer service**, not a ticket rewriter or status m
 | **GitHub** | Read PR + diff; **write PR comments** when `--post` / Action publish / skip-notify | Push code, merge, change settings, delete repos |
 | **Slack** | Optional: DM via bot (`chat:write`, `im:write`) | Post to product channels unless you later choose that |
 | **Gemini** | Call generate API with your key | N/A |
-| **Cloud Run trigger** | Caller must send `Authorization: Bearer PROVEPR_TRIGGER_SECRET` | Public unauthenticated `/v1/review` or `/v1/prd-gate` |
+| **Cloud Run trigger** | Caller must send `Authorization: Bearer PROVEPR_TRIGGER_SECRET` | Public unauthenticated `/v1/review`, `/v1/pr-hook`, `/v1/skip-notify`, or `/v1/prd-gate` |
 
 ## Jira: mostly read; comments only for PRD gate
 
-[`src/provepr/jira_client.py`](src/provepr/jira_client.py) exposes **GET** helpers plus **`add_comment`** for the Story PRD gate.
+[`src/provepr/jira_client.py`](src/provepr/jira_client.py) exposes **GET** helpers plus **`add_comment`** / **`list_comments`** for soft Story/Bug/Task quality gates.
 
 ProvePR **never** transitions issues (no moving To Do → Backlog). Soft gate only.
 

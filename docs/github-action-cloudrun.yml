@@ -1,0 +1,54 @@
+# Copy into any private/company repo as:
+#   .github/workflows/provepr-cloudrun.yml
+#
+# Secrets (repo or org):
+#   PROVEPR_URL              e.g. https://provepr-2f6eho3aiq-uc.a.run.app
+#   PROVEPR_TRIGGER_SECRET   same Bearer secret as Cloud Run
+#
+# Install the KodiQA GitHub App on the repo (comments appear as kodiqa[bot]).
+
+name: KodiQA review (Cloud Run)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [staging]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  kodiqa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call ProvePR /v1/pr-hook
+        env:
+          PROVEPR_URL: ${{ secrets.PROVEPR_URL }}
+          PROVEPR_TRIGGER_SECRET: ${{ secrets.PROVEPR_TRIGGER_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROVEPR_URL:-}" ] || [ -z "${PROVEPR_TRIGGER_SECRET:-}" ]; then
+            echo "Missing PROVEPR_URL or PROVEPR_TRIGGER_SECRET"
+            exit 1
+          fi
+          BODY=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --argjson pr "${{ github.event.pull_request.number }}" \
+            --arg title "${{ github.event.pull_request.title }}" \
+            --arg body "${{ github.event.pull_request.body }}" \
+            --arg branch "${{ github.head_ref }}" \
+            --arg pr_url "${{ github.event.pull_request.html_url }}" \
+            '{repo:$repo, pr:$pr, title:$title, body:$body, branch:$branch, pr_url:$pr_url, post:true}')
+          curl -sS -f -X POST "${PROVEPR_URL%/}/v1/pr-hook" \
+            -H "Authorization: Bearer ${PROVEPR_TRIGGER_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" | tee /tmp/kodiqa-response.json
+          echo
+          python - <<'PY'
+          import json, sys
+          data = json.load(open("/tmp/kodiqa-response.json"))
+          print("action=", data.get("action"), "ticket=", data.get("ticket_key"), "ok=", data.get("ok"))
+          if not data.get("ok"):
+              sys.exit(1)
+          PY

@@ -7,7 +7,7 @@
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
 **Last updated:** 2026-07-23  
-**Status:** Single Docker image **verified locally** (`provepr:local`, `/health` → Hermes); Sprint 8 live Cloud Run await supervisor GCP  
+**Status:** Sprint 8 **live on Cloud Run** — `https://provepr-2f6eho3aiq-uc.a.run.app`; next = Jira Automation + Actions secret refresh  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
 ---
@@ -137,13 +137,25 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 
 **Development panel:** ProvePR checks whether this PR appears under the ticket's Jira **Development** section. If not, the GitHub comment asks the author to link it. This is **advisory only** — it never blocks the review or merge.
 
-**PRD quality gate (PM / Story):** When a **Story** is ready for eng (typically moved to **To Do**), run `prd-gate` (CLI or `POST /v1/prd-gate`). ProvePR scores mandatory PRD sections (Story + subtasks), **comments on the ticket for PMs**, and **Slack-DMs QA**. Soft only — **never** moves the ticket back to backlog.
+**Ticket quality gate (PM / QA / creators):** Soft check for **Story**, **Bug**, and **Task**. Scores mandatory sections (parent + subtasks), **comments on the ticket**, and **Slack-DMs QA**. Soft only — **never** moves the ticket back to backlog or changes status.
+
+| Type | When (Jira Automation) | Mandatory (soft) | Notes |
+|------|------------------------|------------------|--------|
+| **Story** | → **To Do** | Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope | Full PRD bar |
+| **Bug** | → **To Do** then **delay 15–30 min** (primary); → **In Progress** safety net | Description, Steps to reproduce, Expected, Actual, Environment | Attachments recommended; optional skip list `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` |
+| **Task** | Same as Bug | Goal, Done when, Scope / out of scope | Light — not a full Story PRD |
+
+**Do not** trigger on bare Issue created (title-only shells). Delay after To Do gives creators time to fill the body.
+
+**In Progress safety net:** body `{"issue":{"key":"{{issue.key}}"},"trigger":"in_progress"}`. If a prior KodiQA comment already said **Ready**, ProvePR no-ops (no double-nag). If never checked or still Needs work, comments + Slack again.
 
 Jira Automation (once Cloud Run / public URL exists):
-1. Trigger: Issue transitioned → To Do; Issue type = Story; Project = PROV (or pilot board)
-2. Action: Send web request `POST https://<provepr>/v1/prd-gate` with header `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>` and body `{"issue":{"key":"{{issue.key}}"}}`
+1. Story → To Do → `POST /v1/prd-gate` `{"issue":{"key":"{{issue.key}}"},"trigger":"to_do"}`
+2. Bug/Task → To Do → Delay 15–30m → same URL with `"trigger":"to_do"`
+3. Bug/Task → In Progress → same URL with `"trigger":"in_progress"`
+4. Header: `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`
 
-Until then: `python -m provepr prd-gate --ticket PROV-10`
+Until then: `python -m provepr prd-gate --ticket PROV-10` (add `--trigger in_progress` to test the safety net).
 
 If no Jira ID is found on a PR, the Action skips the review (safe failure) and notifies QA.
 
@@ -161,7 +173,7 @@ If no Jira ID is found on a PR, the Action skips the review (safe failure) and n
 | **5 / Sprint 6** | HTTP wrapper for triggers | No | **Done** |
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **Done** |
 | **Hermes + Docker** | Hermes tool loop + single Dockerfile for Cloud Run | No (local Docker) | **Done** |
-| **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — billing on project** | **Blocked** — project `kodifly-qa-automations` (name: qa-automations); gcloud OK as `ibrahim.kayani@kodifly.com`; needs **billing linked** then deploy |
+| **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — billing on project** | **Done** — `https://provepr-2f6eho3aiq-uc.a.run.app` (`kodifly-qa-automations` / us-central1); `/health` + `/v1/prd-gate` smoked |
 | **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
 
 ### Monday next (2026-07-24 handoff — resume here)
@@ -178,18 +190,18 @@ If no Jira ID is found on a PR, the Action skips the review (safe failure) and n
 4. **Set Cloud Run env vars** from refreshed `.env` (never bake into image)
 5. **Bulletproof smoke:** `GET /health`, `POST /v1/prd-gate` (Story), `POST /v1/review` (known demo PR)
 6. **Optional auto-redeploy:** Cloud Build trigger on `master` push (so GCP stays in sync without supervisor)
-7. **Jira Automation:** Story → To Do → `POST /v1/prd-gate`
-8. **Extend ticket gates** beyond Story (design locked below — implement after Cloud Run is stable)
+7. **Jira Automation:** Story → To Do → `POST /v1/prd-gate`; Bug/Task → To Do (+ delay) + In Progress safety net
+8. **Pilot** company board once gates are live on Cloud Run
 
-**Both product surfaces on the same image:** Devs = `/v1/review` (+ Actions); PMs = `/v1/prd-gate` (soft, no backlog bounce).
+**Both product surfaces on the same image:** Devs = `/v1/review` (+ Actions); PMs/QA = `/v1/prd-gate` (soft, no backlog bounce).
 
-#### Proposed ticket-type gates (not built yet)
+#### Ticket-type gates (live in code)
 
 | Type | When | Mandatory (soft) | Notes |
 |------|------|------------------|--------|
-| **Story** | → To Do | Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope | Live today (CLI + API) |
-| **Bug** | → To Do (or “Ready”) | Issue type/component signal, **Description**, **Steps to reproduce**, **Expected**, **Actual**, **Environment** (attachments recommended) | Match QA bar like SIFU-FE-BUG-004 style; **exclude reporter = you** if you want (configurable email/accountId) so your already-rich bugs aren’t nagged |
-| **Task** | → To Do | **Goal (1–2 lines)**, **Done when** (1–3 bullets), **Scope / out of scope** (short) | Keep light — Tasks are small; do **not** demand full Story PRD |
+| **Story** | → To Do | Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope | CLI + API |
+| **Bug** | → To Do (+ delay) + In Progress safety net | Description, Steps to reproduce, Expected, Actual, Environment | Skip reporters via `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` |
+| **Task** | Same as Bug | Goal, Done when, Scope / out of scope | Light checklist |
 
 ---
 
@@ -307,3 +319,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-07-23 | Development advisory | Non-blocking check: is this PR linked on the Jira Development panel? Comment asks author to link if missing; never blocks. Subtasks included in PRD text. Title policy: exactly one Jira key (1 ticket ↔ 1 PR). |
 | 2026-07-23 | PRD quality gate (soft) | CLI `python -m provepr prd-gate --ticket KEY` for **Story** tickets: mandatory Goals/Persona/User stories/Functional reqs/AC/Success metrics/Scope; scores parent+subtasks; Ready vs Needs work; never blocks. Webhook on To Do later. |
 | 2026-07-24 | GCP handoff | Login OK (`ibrahim.kayani@kodifly.com`); project **qa-automations** / ID `kodifly-qa-automations`; deploy blocked on **billing**. Monday: refresh secrets → deploy → smoke → Automation; later Bug/Task soft gates. |
+| 2026-08-03 | Bug + Task gates | Soft checklists for Bug (QA template) and Task (light Goal/Done-when/Scope); delayed To Do + In Progress safety net (`trigger=in_progress` dedupes Ready); optional `PRD_GATE_BUG_SKIP_REPORTER_EMAILS`. |
+| 2026-08-17 | Sprint 8 Cloud Run | Billing enabled on `kodifly-qa-automations`; image built; service live at `https://provepr-2f6eho3aiq-uc.a.run.app`; smoked `/health` (hermes), `/v1/prd-gate` PROV-18 Ready 7/7, `/v1/review` PR #13 OK (no post). Next: Jira Automation + refresh Actions `JIRA_API_TOKEN`. |

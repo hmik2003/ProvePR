@@ -79,9 +79,15 @@ def main(argv: list[str] | None = None) -> int:
 
     gate_parser = sub.add_parser(
         "prd-gate",
-        help="Soft PRD quality gate for Story tickets (Jira comment + Slack; no transitions)",
+        help="Soft quality gate for Story/Bug/Task (Jira comment + Slack; no transitions)",
     )
     gate_parser.add_argument("--ticket", required=True, help="Jira issue key (e.g. PROV-10)")
+    gate_parser.add_argument(
+        "--trigger",
+        default="manual",
+        choices=["to_do", "in_progress", "manual"],
+        help="Automation context: in_progress dedupes if prior gate was Ready",
+    )
     gate_parser.add_argument(
         "--no-notify",
         action="store_true",
@@ -90,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     gate_parser.add_argument(
         "--no-comment",
         action="store_true",
-        help="Do not leave a Jira ticket comment for PMs (default: comment)",
+        help="Do not leave a Jira ticket comment (default: comment)",
     )
 
     skip_parser = sub.add_parser(
@@ -155,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
             ticket=args.ticket,
             notify=not args.no_notify,
             comment=not args.no_comment,
+            trigger=args.trigger or "",
         )
 
     if args.command == "skip-notify":

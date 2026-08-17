@@ -16,6 +16,7 @@ env/
 .env.local
 .env.*.local
 *.pem
+.cloudrun_url
 
 # Hermes local runtime junk — keep committed project plugin
 .hermes/*
@@ -37,6 +38,9 @@ htmlcov/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Local git worktrees
+.worktrees/
 
 # Build
 dist/

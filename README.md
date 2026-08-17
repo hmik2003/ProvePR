@@ -9,7 +9,13 @@ Connect any GitHub repo to any Jira board: **ProvePR** reads the requirements, r
 **Dev account:** personal GitHub `hmik2003` first; company pilots later.
 
 Living product context: [`PROJECT.md`](./PROJECT.md)  
-Security / least privilege: [`SECURITY.md`](./SECURITY.md)
+Security / least privilege: [`SECURITY.md`](./SECURITY.md)  
+Production rollout (private → company): [`docs/PRODUCTION_ROLLOUT.md`](./docs/PRODUCTION_ROLLOUT.md)
+
+**Cloud Run (live):** `https://provepr-2f6eho3aiq-uc.a.run.app`  
+- Dev: `POST /v1/pr-hook` (thin GitHub Action) · `POST /v1/review` · `POST /v1/skip-notify`  
+- PM: `POST /v1/prd-gate` (Jira Automation)  
+- Auth: `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`
 
 ---
 
@@ -61,7 +67,7 @@ ProvePR tools only (no terminal/browser): Jira PRD (parent + subtasks) + GitHub 
 **Policies baked in:**
 - **1 ticket ↔ 1 PR** — exactly one Jira key in the PR title (multiple keys skip the Action).
 - **Development panel** — comment advises if the PR is not linked on the Jira ticket; **non-blocking**.
-- **PRD quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` scores Story mandatory sections, **comments on the Jira ticket for PMs**, and **Slack-DMs QA**. Never moves the ticket back to backlog. HTTP: `POST /v1/prd-gate` for Jira Automation (Story → To Do).
+- **Ticket quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` scores **Story / Bug / Task** checklists, **comments on the Jira ticket**, and **Slack-DMs QA**. Never changes status. HTTP: `POST /v1/prd-gate` for Jira Automation (Story → To Do; Bug/Task → To Do with delay + In Progress safety net via `"trigger":"in_progress"`). Optional: `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` to skip your own rich bugs.
 - **Skip notify** — if a PR has no Jira key (or multiple keys in the title), review is skipped (no Gemini) but QA gets a Slack DM + short PR comment via `skip-notify`.
 
 ---

@@ -1,4 +1,11 @@
-from provepr.prd_gate import evaluate_prd_gate, format_prd_gate_report, score_prd_text
+from provepr.prd_gate import (
+    evaluate_prd_gate,
+    format_prd_gate_report,
+    prior_gate_was_ready,
+    score_bug_text,
+    score_prd_text,
+    score_task_text,
+)
 
 
 RICH_PRD = """
@@ -38,6 +45,43 @@ Equal prices: stable secondary order by id is fine.
 
 THIN_PRD = "Add sorting maybe. Talk to eng."
 
+RICH_BUG = """
+## Description
+Checkout fails when the cart has a discounted item.
+
+## Steps to reproduce
+1. Add a product with a coupon
+2. Open checkout
+3. Submit payment
+
+## Expected
+Order is created and stock is reserved.
+
+## Actual
+API returns 500 and no order is written.
+
+## Environment
+Chrome 128 / staging / iOS Safari also reproduces.
+
+Screenshot attached for the 500 response.
+"""
+
+THIN_BUG = "Checkout broken somehow."
+
+RICH_TASK = """
+## Goal
+Bump the health endpoint to expose the app version string.
+
+## Done when
+- GET /health returns a version field
+- Existing status field still works
+
+## Scope / out of scope
+In scope: health payload only. Out of scope: changing deploy pipelines.
+"""
+
+THIN_TASK = "Do the health thing."
+
 
 def test_score_rich_prd_all_mandatory():
     mandatory, recommended = score_prd_text(RICH_PRD)
@@ -60,6 +104,7 @@ def test_evaluate_ready():
     )
     assert result.verdict == "Ready"
     assert result.is_ready
+    assert result.checklist == "story"
 
 
 def test_evaluate_needs_work():
@@ -72,15 +117,108 @@ def test_evaluate_needs_work():
     assert result.verdict == "Needs work"
 
 
-def test_evaluate_skips_non_story():
+def test_evaluate_skips_unsupported_type():
     result = evaluate_prd_gate(
         ticket_key="PROV-1",
-        issue_type="Bug",
+        issue_type="Epic",
         status="To Do",
         prd_text=RICH_PRD,
     )
     assert result.skipped
     assert result.verdict == "Skipped"
+
+
+def test_bug_ready_and_thin():
+    rich = evaluate_prd_gate(
+        ticket_key="PROV-20",
+        issue_type="Bug",
+        status="To Do",
+        prd_text=RICH_BUG,
+    )
+    assert rich.checklist == "bug"
+    assert rich.verdict == "Ready"
+    assert all(s.present for s in rich.mandatory)
+
+    thin = evaluate_prd_gate(
+        ticket_key="PROV-21",
+        issue_type="Bug",
+        status="To Do",
+        prd_text=THIN_BUG,
+    )
+    assert thin.verdict == "Needs work"
+    assert thin.present_count < thin.mandatory_total
+
+
+def test_bug_description_length_fallback():
+    body = (
+        "Users cannot complete checkout after applying a coupon on mobile. "
+        "This has been happening since yesterday afternoon on staging."
+    )
+    # Long prose alone is not enough — still need repro/expected/actual/env
+    mandatory, _ = score_bug_text(body)
+    assert any(s.name == "Description" and s.present for s in mandatory)
+    assert any(s.name == "Steps to reproduce" and not s.present for s in mandatory)
+
+
+def test_bug_skip_reporter():
+    result = evaluate_prd_gate(
+        ticket_key="PROV-22",
+        issue_type="Bug",
+        status="To Do",
+        prd_text=THIN_BUG,
+        reporter_email="ibrahim.kayani@kodifly.com",
+        bug_skip_reporter_emails=("ibrahim.kayani@kodifly.com",),
+    )
+    assert result.skipped
+    assert "skip list" in result.skip_reason.lower()
+
+
+def test_task_ready_and_thin():
+    rich = evaluate_prd_gate(
+        ticket_key="PROV-30",
+        issue_type="Task",
+        status="To Do",
+        prd_text=RICH_TASK,
+    )
+    assert rich.checklist == "task"
+    assert rich.verdict == "Ready"
+
+    thin = evaluate_prd_gate(
+        ticket_key="PROV-31",
+        issue_type="Task",
+        status="To Do",
+        prd_text=THIN_TASK,
+    )
+    assert thin.verdict == "Needs work"
+
+
+def test_in_progress_dedupe_when_prior_ready():
+    assert prior_gate_was_ready(
+        ["KodiQA Bug quality gate\nVerdict: Ready (5/5 mandatory sections)"]
+    )
+    result = evaluate_prd_gate(
+        ticket_key="PROV-40",
+        issue_type="Bug",
+        status="In Progress",
+        prd_text=THIN_BUG,
+        trigger="in_progress",
+        prior_ready=True,
+    )
+    assert result.skipped
+    assert "already Ready" in result.skip_reason
+
+
+def test_in_progress_still_runs_when_not_prior_ready():
+    result = evaluate_prd_gate(
+        ticket_key="PROV-41",
+        issue_type="Bug",
+        status="In Progress",
+        prd_text=THIN_BUG,
+        trigger="in_progress",
+        prior_ready=False,
+    )
+    assert not result.skipped
+    assert result.verdict == "Needs work"
 
 
 def test_format_report_mentions_soft_gate():
@@ -107,9 +245,13 @@ def test_format_jira_adf_and_slack():
     )
     adf = format_prd_gate_jira_adf(result)
     assert adf["type"] == "doc"
-    assert any(
-        n.get("type") == "heading" for n in adf["content"]
-    )
+    assert any(n.get("type") == "heading" for n in adf["content"])
     slack = format_prd_gate_slack(result)
     assert "Ready" in slack
-    assert "backlog" in slack.lower()
+    assert "status" in slack.lower() or "backlog" in slack.lower()
+
+
+def test_score_task_text_helpers():
+    mandatory, recommended = score_task_text(RICH_TASK)
+    assert all(s.present for s in mandatory)
+    assert recommended == ()
