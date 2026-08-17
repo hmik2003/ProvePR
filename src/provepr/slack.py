@@ -1,15 +1,18 @@
-"""Slack notify — prefer personal DM via bot; webhook optional; stub if unset."""
+"""Slack notify — Dev vs PM bots (DM); shared token fallback; webhook optional."""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Literal
 
 import httpx
 
 from provepr.config import load_env
 
 SLACK_API = "https://slack.com/api"
+
+SlackKind = Literal["dev", "pm"]
 
 
 @dataclass(frozen=True)
@@ -18,25 +21,48 @@ class SlackResult:
     detail: str
 
 
-def notify_slack(text: str) -> SlackResult:
+def _token_for_kind(kind: SlackKind) -> str:
+    """Prefer kind-specific bot; fall back to legacy SLACK_BOT_TOKEN."""
+    if kind == "pm":
+        specific = (os.getenv("SLACK_PM_BOT_TOKEN") or "").strip()
+    else:
+        specific = (os.getenv("SLACK_DEV_BOT_TOKEN") or "").strip()
+    if specific:
+        return specific
+    return (os.getenv("SLACK_BOT_TOKEN") or "").strip()
+
+
+def notify_slack(text: str, *, kind: SlackKind = "dev") -> SlackResult:
     """
     Notify order:
-    1) SLACK_BOT_TOKEN + SLACK_DM_USER_ID → open DM and post (personal only)
-    2) SLACK_WEBHOOK_URL → Incoming Webhook (channel; legacy)
+    1) Bot token for `kind` (or legacy SLACK_BOT_TOKEN) + SLACK_DM_USER_ID → DM
+    2) SLACK_WEBHOOK_URL → Incoming Webhook (channel; legacy; ignores kind)
     3) else stub
+
+    kind:
+      - dev → PR reviews + skip-notify (SLACK_DEV_BOT_TOKEN)
+      - pm  → ticket quality gates (SLACK_PM_BOT_TOKEN)
     """
     load_env()
-    bot_token = (os.getenv("SLACK_BOT_TOKEN") or "").strip()
+    bot_token = _token_for_kind(kind)
     dm_user = (os.getenv("SLACK_DM_USER_ID") or "").strip()
     webhook = (os.getenv("SLACK_WEBHOOK_URL") or "").strip()
 
     if bot_token and dm_user:
-        return _dm_via_bot(bot_token=bot_token, user_id=dm_user, text=text)
+        result = _dm_via_bot(bot_token=bot_token, user_id=dm_user, text=text)
+        if result.posted:
+            return SlackResult(
+                posted=True,
+                detail=f"{result.detail} ({kind})",
+            )
+        return result
 
     if bot_token and not dm_user:
         return SlackResult(
             posted=False,
-            detail="Slack stub: SLACK_BOT_TOKEN set but SLACK_DM_USER_ID missing",
+            detail=(
+                f"Slack stub ({kind}): bot token set but SLACK_DM_USER_ID missing"
+            ),
         )
 
     if webhook:
@@ -47,8 +73,9 @@ def notify_slack(text: str) -> SlackResult:
     return SlackResult(
         posted=False,
         detail=(
-            "Slack stub: skipped "
-            "(set SLACK_BOT_TOKEN + SLACK_DM_USER_ID for personal DM)"
+            f"Slack stub ({kind}): skipped "
+            "(set SLACK_DEV_BOT_TOKEN / SLACK_PM_BOT_TOKEN or SLACK_BOT_TOKEN "
+            "+ SLACK_DM_USER_ID)"
         ),
     )
 

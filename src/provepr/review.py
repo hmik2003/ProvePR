@@ -391,7 +391,7 @@ def run_review(
             f"{comment_url}"
         )
         try:
-            slack = notify_slack(slack_text)
+            slack = notify_slack(slack_text, kind="dev")
             print(f"Slack   : {slack.detail}")
         except httpx.HTTPStatusError as exc:
             print(f"Slack FAIL: HTTP {exc.response.status_code}")

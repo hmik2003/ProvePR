@@ -7,6 +7,8 @@ from provepr import slack as slack_mod
 def test_notify_slack_stub(monkeypatch):
     monkeypatch.setattr(slack_mod, "load_env", lambda: None)
     monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_DEV_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_PM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("SLACK_DM_USER_ID", raising=False)
     monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
     result = slack_mod.notify_slack("hi")
@@ -19,6 +21,8 @@ def test_notify_slack_dm(monkeypatch):
     monkeypatch.setattr(slack_mod, "load_env", lambda: None)
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     monkeypatch.setenv("SLACK_DM_USER_ID", "U123")
+    monkeypatch.delenv("SLACK_DEV_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_PM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
 
     respx.post("https://slack.com/api/conversations.open").mock(
@@ -28,15 +32,60 @@ def test_notify_slack_dm(monkeypatch):
         return_value=httpx.Response(200, json={"ok": True, "ts": "1.2"})
     )
 
-    result = slack_mod.notify_slack("hi")
+    result = slack_mod.notify_slack("hi", kind="dev")
     assert result.posted is True
     assert "DM" in result.detail
+    assert "dev" in result.detail
+
+
+@respx.mock
+def test_notify_slack_pm_uses_pm_token(monkeypatch):
+    monkeypatch.setattr(slack_mod, "load_env", lambda: None)
+    monkeypatch.setenv("SLACK_PM_BOT_TOKEN", "xoxb-pm")
+    monkeypatch.setenv("SLACK_DEV_BOT_TOKEN", "xoxb-dev")
+    monkeypatch.setenv("SLACK_DM_USER_ID", "U123")
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+
+    open_route = respx.post("https://slack.com/api/conversations.open").mock(
+        return_value=httpx.Response(200, json={"ok": True, "channel": {"id": "D1"}})
+    )
+    respx.post("https://slack.com/api/chat.postMessage").mock(
+        return_value=httpx.Response(200, json={"ok": True, "ts": "1"})
+    )
+
+    result = slack_mod.notify_slack("gate", kind="pm")
+    assert result.posted is True
+    assert "pm" in result.detail
+    assert open_route.calls[0].request.headers["Authorization"] == "Bearer xoxb-pm"
+
+
+@respx.mock
+def test_notify_slack_dev_uses_dev_token(monkeypatch):
+    monkeypatch.setattr(slack_mod, "load_env", lambda: None)
+    monkeypatch.setenv("SLACK_PM_BOT_TOKEN", "xoxb-pm")
+    monkeypatch.setenv("SLACK_DEV_BOT_TOKEN", "xoxb-dev")
+    monkeypatch.setenv("SLACK_DM_USER_ID", "U123")
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+
+    open_route = respx.post("https://slack.com/api/conversations.open").mock(
+        return_value=httpx.Response(200, json={"ok": True, "channel": {"id": "D1"}})
+    )
+    respx.post("https://slack.com/api/chat.postMessage").mock(
+        return_value=httpx.Response(200, json={"ok": True, "ts": "1"})
+    )
+
+    result = slack_mod.notify_slack("review", kind="dev")
+    assert result.posted is True
+    assert open_route.calls[0].request.headers["Authorization"] == "Bearer xoxb-dev"
 
 
 @respx.mock
 def test_notify_slack_webhook_fallback(monkeypatch):
     monkeypatch.setattr(slack_mod, "load_env", lambda: None)
     monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_DEV_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_PM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("SLACK_DM_USER_ID", raising=False)
     monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/T/B/X")
     respx.post("https://hooks.slack.com/services/T/B/X").mock(

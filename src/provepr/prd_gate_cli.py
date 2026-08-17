@@ -114,7 +114,7 @@ def execute_prd_gate(
 
     slack_detail = ""
     if notify and not result.skipped:
-        slack = notify_slack(format_prd_gate_slack(result))
+        slack = notify_slack(format_prd_gate_slack(result), kind="pm")
         slack_detail = slack.detail
 
     return PrdGateRun(

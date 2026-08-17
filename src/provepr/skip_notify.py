@@ -113,7 +113,7 @@ def run_skip_notify(
     print(message)
 
     try:
-        slack = notify_slack(message)
+        slack = notify_slack(message, kind="dev")
         print(f"Slack: {slack.detail}")
     except httpx.HTTPStatusError as exc:
         print(f"Slack FAIL: HTTP {exc.response.status_code}")

@@ -10,7 +10,8 @@ Connect any GitHub repo to any Jira board: **ProvePR** reads the requirements, r
 
 Living product context: [`PROJECT.md`](./PROJECT.md)  
 Security / least privilege: [`SECURITY.md`](./SECURITY.md)  
-Production rollout (private → company): [`docs/PRODUCTION_ROLLOUT.md`](./docs/PRODUCTION_ROLLOUT.md)
+Production rollout (private → company): [`docs/PRODUCTION_ROLLOUT.md`](./docs/PRODUCTION_ROLLOUT.md)  
+Dual Slack (Dev vs PM DMs): [`docs/SLACK_DUAL_BOTS.md`](./docs/SLACK_DUAL_BOTS.md)
 
 **Cloud Run (live):** `https://provepr-2f6eho3aiq-uc.a.run.app`  
 - Dev: `POST /v1/pr-hook` (thin GitHub Action) · `POST /v1/review` · `POST /v1/skip-notify`  
