@@ -61,7 +61,7 @@ No per-repo Jira/Gemini/Slack secrets — those live on Cloud Run only.
 
 ## Wire Jira Automation (PM) — PROV first, Sifu next
 
-**Rule A — Story / Feature → To Do**
+**Rule A — Story / Feature → To Do (status change)**
 
 - When: Issue transitioned → To Do; Type in (Story, Feature); Project = PROV (later Sifu)  
 - Then: Send web request  
@@ -69,6 +69,15 @@ No per-repo Jira/Gemini/Slack secrets — those live on Cloud Run only.
   - Method: POST  
   - Headers: `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`, `Content-Type: application/json`  
   - Body: `{"issue":{"key":"{{issue.key}}"},"trigger":"to_do"}`
+
+**Rule A2 — Story / Feature already To Do (team-managed Backlog → board)**
+
+On team-managed Kanban (KS), Backlog is a **location**, not a status. Tickets in Backlog are often already **To Do**, so dragging onto the board does **not** fire Rule A.
+
+- When: **Scheduled** (every 10–15 minutes)  
+- JQL: `project = KS AND type in (Story, Feature) AND status = "To Do" AND updated >= -20m`  
+- Then: same web request as Rule A (`trigger=to_do`)  
+- Cloud Run skips if a KodiQA comment already exists (no spam)
 
 **Rule B — Bug / Task → To Do (delayed)**
 

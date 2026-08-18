@@ -15,6 +15,7 @@ from provepr.prd_gate import (
     format_prd_gate_jira_adf,
     format_prd_gate_report,
     format_prd_gate_slack,
+    prior_gate_comment_exists,
     prior_gate_was_ready,
 )
 from provepr.slack import notify_slack
@@ -84,10 +85,11 @@ def execute_prd_gate(
             status = str(st.get("name") or "")
 
         prior_ready = False
-        if trigger_norm in {"in_progress", "inprogress"}:
-            prior_ready = prior_gate_was_ready(
-                _comment_plain_bodies(jira.list_comments(key))
-            )
+        prior_comment = False
+        if trigger_norm in {"in_progress", "inprogress", "to_do", "todo"}:
+            bodies = _comment_plain_bodies(jira.list_comments(key))
+            prior_ready = prior_gate_was_ready(bodies)
+            prior_comment = prior_gate_comment_exists(bodies)
 
         prd = build_prd_with_subtasks(issue, subtasks)
         result = evaluate_prd_gate(
@@ -100,6 +102,7 @@ def execute_prd_gate(
             bug_skip_reporter_emails=bug_skip_reporter_emails(),
             trigger=trigger_norm,
             prior_ready=prior_ready,
+            prior_comment=prior_comment,
         )
         report = format_prd_gate_report(result)
 

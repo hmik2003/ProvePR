@@ -252,6 +252,22 @@ def test_in_progress_still_runs_when_not_prior_ready():
     assert result.verdict == "Needs work"
 
 
+def test_to_do_dedupe_when_prior_comment_exists():
+    from provepr.prd_gate import prior_gate_comment_exists
+
+    assert prior_gate_comment_exists(["KodiQA Feature quality gate\nVerdict: Needs work"])
+    result = evaluate_prd_gate(
+        ticket_key="KS-537",
+        issue_type="Feature",
+        status="To Do",
+        prd_text="thin",
+        trigger="to_do",
+        prior_comment=True,
+    )
+    assert result.skipped
+    assert "already exists" in result.skip_reason.lower()
+
+
 def test_format_report_mentions_soft_gate():
     result = evaluate_prd_gate(
         ticket_key="PROV-10",

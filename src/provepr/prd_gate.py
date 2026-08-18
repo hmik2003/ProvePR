@@ -359,6 +359,11 @@ def prior_gate_was_ready(comment_bodies: list[str]) -> bool:
     return False
 
 
+def prior_gate_comment_exists(comment_bodies: list[str]) -> bool:
+    """True if any prior KodiQA gate comment exists (scheduled To Do dedupe)."""
+    return any(GATE_MARKER in (body or "") for body in comment_bodies)
+
+
 def evaluate_prd_gate(
     *,
     ticket_key: str,
@@ -375,12 +380,14 @@ def evaluate_prd_gate(
     bug_skip_reporter_emails: tuple[str, ...] = (),
     trigger: str = "",
     prior_ready: bool = False,
+    prior_comment: bool = False,
 ) -> PrdGateResult:
     """
     Soft gate for Story / Bug / Task / Feature. Spike and other types are Skipped.
 
-    Never transitions issues. In Progress safety net: if trigger=in_progress and a
-    prior KodiQA comment already said Ready, skip (no double-nag).
+    Never transitions issues.
+    - trigger=in_progress + prior Ready → skip (no double-nag)
+    - trigger=to_do + any prior KodiQA comment → skip (scheduled Backlog catch)
     """
     trigger_norm = (trigger or "").strip().lower().replace("-", "_")
     if trigger_norm in {"in_progress", "inprogress"} and prior_ready:
@@ -391,6 +398,24 @@ def evaluate_prd_gate(
             skipped=True,
             skip_reason=(
                 "In Progress safety net skipped — prior KodiQA gate already Ready"
+            ),
+            verdict="Skipped",
+            mandatory=(),
+            recommended=(),
+            present_count=0,
+            mandatory_total=0,
+            subtask_count=subtask_count,
+            checklist="none",
+            trigger=trigger_norm,
+        )
+    if trigger_norm in {"to_do", "todo"} and prior_comment:
+        return PrdGateResult(
+            ticket_key=ticket_key,
+            issue_type=issue_type,
+            status=status,
+            skipped=True,
+            skip_reason=(
+                "To Do gate skipped — prior KodiQA comment already exists"
             ),
             verdict="Skipped",
             mandatory=(),
