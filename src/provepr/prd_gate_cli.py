@@ -1,4 +1,4 @@
-"""CLI / HTTP: soft ticket quality gate (Story/Bug/Task; never transitions)."""
+"""CLI / HTTP: soft ticket quality gate (Story/Bug/Task/Feature; never transitions)."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def execute_prd_gate(
     trigger: str = "",
 ) -> PrdGateRun:
     """
-    Score Story / Bug / Task text (parent + subtasks), optionally comment + Slack.
+    Score Story / Bug / Task / Feature text (parent + subtasks), optionally comment + Slack.
 
     Soft only: never transitions the issue (no bounce back to backlog).
 

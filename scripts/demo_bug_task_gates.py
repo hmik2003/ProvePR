@@ -1,4 +1,4 @@
-"""Local demo of Story/Bug/Task soft quality gates (offline + optional live)."""
+"""Local demo of Story/Bug/Task/Feature soft quality gates (offline)."""
 
 from __future__ import annotations
 
@@ -45,6 +45,26 @@ In scope: health payload only. Out of scope: changing deploy pipelines.
 """
 
 THIN_TASK = "Do the health thing."
+
+RICH_FEATURE = """
+## Problem / why
+PMs cannot tell which catalog SKUs are actually sellable.
+
+## Outcome / value
+Ops can filter the catalog to in-stock items.
+
+## Scope / in-scope
+List endpoint filter only.
+
+## Acceptance criteria
+- in_stock=true returns only stock > 0
+- omitting in_stock keeps the existing list
+
+## Success / done when
+GET /api/products?in_stock=true returns only stock > 0.
+"""
+
+THIN_FEATURE = "We should do in-stock someday."
 
 
 def show(label: str, **kwargs) -> None:
@@ -111,6 +131,27 @@ def main() -> int:
         prd_text=THIN_BUG,
         reporter_email="ibrahim.kayani@kodifly.com",
         bug_skip_reporter_emails=("ibrahim.kayani@kodifly.com",),
+        trigger="to_do",
+    )
+    show(
+        "8) Feature READY",
+        issue_type="Feature",
+        status="To Do",
+        prd_text=RICH_FEATURE,
+        trigger="to_do",
+    )
+    show(
+        "9) Feature NEEDS WORK",
+        issue_type="Feature",
+        status="To Do",
+        prd_text=THIN_FEATURE,
+        trigger="to_do",
+    )
+    show(
+        "10) Spike SKIPPED (not gated yet)",
+        issue_type="Spike",
+        status="To Do",
+        prd_text="Investigate name sort.",
         trigger="to_do",
     )
     return 0

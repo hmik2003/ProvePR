@@ -7,7 +7,7 @@ ProvePR can DM you from **two Slack apps** so review noise and ticket-gate noise
 | Kind | Used by | Env token |
 |------|---------|-----------|
 | **dev** | PR review, skip-notify | `SLACK_DEV_BOT_TOKEN` → else `SLACK_BOT_TOKEN` |
-| **pm** | `prd-gate` (Story/Bug/Task) | `SLACK_PM_BOT_TOKEN` → else `SLACK_BOT_TOKEN` |
+| **pm** | `prd-gate` (Story/Bug/Task/Feature; Spike skipped) | `SLACK_PM_BOT_TOKEN` → else `SLACK_BOT_TOKEN` |
 
 Shared: `SLACK_DM_USER_ID` (your Slack user id).
 

@@ -3,6 +3,7 @@ from provepr.prd_gate import (
     format_prd_gate_report,
     prior_gate_was_ready,
     score_bug_text,
+    score_feature_text,
     score_prd_text,
     score_task_text,
 )
@@ -82,6 +83,34 @@ In scope: health payload only. Out of scope: changing deploy pipelines.
 
 THIN_TASK = "Do the health thing."
 
+RICH_FEATURE = """
+## Problem / why
+PMs cannot tell which catalog SKUs are actually sellable, so they over-promise stock.
+
+## Outcome / value
+Ops can filter the catalog to in-stock items and trust the list for customer promises.
+
+## Scope / in-scope
+List endpoint filter only. No warehouse sync in this feature.
+
+## Acceptance criteria
+- GET /api/products?in_stock=true returns only products with stock > 0
+- GET /api/products?in_stock=false returns only products with stock = 0
+- Omitting in_stock keeps the existing unfiltered list
+- Invalid in_stock values return HTTP 400
+
+## Success / done when
+GET /api/products?in_stock=true returns only stock > 0; default list unchanged.
+
+## Out of scope
+Inventory forecasting.
+
+## Dependencies
+Uses existing stock column on products.
+"""
+
+THIN_FEATURE = "We should do in-stock someday."
+
 
 def test_score_rich_prd_all_mandatory():
     mandatory, recommended = score_prd_text(RICH_PRD)
@@ -126,6 +155,8 @@ def test_evaluate_skips_unsupported_type():
     )
     assert result.skipped
     assert result.verdict == "Skipped"
+    assert "Feature" in result.skip_reason
+    assert "Spike" not in result.skip_reason
 
 
 def test_bug_ready_and_thin():
@@ -255,3 +286,95 @@ def test_score_task_text_helpers():
     mandatory, recommended = score_task_text(RICH_TASK)
     assert all(s.present for s in mandatory)
     assert recommended == ()
+
+
+def test_feature_ready_and_thin():
+    rich = evaluate_prd_gate(
+        ticket_key="SIFU-10",
+        issue_type="Feature",
+        status="To Do",
+        prd_text=RICH_FEATURE,
+    )
+    assert rich.checklist == "feature"
+    assert rich.verdict == "Ready"
+    assert all(s.present for s in rich.mandatory)
+
+    thin = evaluate_prd_gate(
+        ticket_key="SIFU-11",
+        issue_type="New Feature",
+        status="To Do",
+        prd_text=THIN_FEATURE,
+    )
+    assert thin.checklist == "feature"
+    assert thin.verdict == "Needs work"
+
+
+def test_feature_needs_acceptance_criteria():
+    no_ac = """
+## Problem / why
+PMs cannot tell which catalog SKUs are actually sellable.
+
+## Outcome / value
+Ops can filter the catalog to in-stock items.
+
+## Scope / in-scope
+List endpoint filter only.
+
+## Success / done when
+in_stock filter is used in catalog sessions.
+"""
+    result = evaluate_prd_gate(
+        ticket_key="SIFU-12",
+        issue_type="Feature",
+        status="To Do",
+        prd_text=no_ac,
+    )
+    assert result.verdict == "Needs work"
+    assert any(s.name == "Acceptance criteria" and not s.present for s in result.mandatory)
+
+
+def test_spike_skipped_for_now():
+    result = evaluate_prd_gate(
+        ticket_key="SIFU-20",
+        issue_type="Spike",
+        status="To Do",
+        prd_text="Investigate name sort.",
+    )
+    assert result.skipped
+    assert result.verdict == "Skipped"
+    assert "not gated yet" in result.skip_reason.lower()
+
+    research = evaluate_prd_gate(
+        ticket_key="SIFU-21",
+        issue_type="Research",
+        status="To Do",
+        prd_text="Look into sorting maybe.",
+    )
+    assert research.skipped
+
+
+def test_score_feature_helpers():
+    feat_m, feat_r = score_feature_text(RICH_FEATURE)
+    assert all(s.present for s in feat_m)
+    assert any(s.name == "Out of scope" and s.present for s in feat_r)
+
+
+def test_format_feature_labels():
+    from provepr.prd_gate import format_prd_gate_jira_adf, format_prd_gate_slack
+
+    feature = evaluate_prd_gate(
+        ticket_key="SIFU-10",
+        issue_type="Feature",
+        status="To Do",
+        prd_text=THIN_FEATURE,
+    )
+    assert "Feature quality gate" in format_prd_gate_report(feature)
+    slack = format_prd_gate_slack(feature)
+    assert "Feature gate" in slack
+    adf = format_prd_gate_jira_adf(feature)
+    headings = [
+        n["content"][0]["text"]
+        for n in adf["content"]
+        if n.get("type") == "heading"
+    ]
+    assert any("Feature" in h for h in headings)

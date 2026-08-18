@@ -167,10 +167,11 @@ def trigger_prd_gate(
     authorization: Annotated[str | None, Header()] = None,
 ) -> PrdGateResponse:
     """
-    Soft Story / Bug / Task quality gate for Jira Automation.
+    Soft Story / Bug / Task / Feature quality gate for Jira Automation.
 
     Leaves a Jira comment + Slack DM for QA. Never transitions the ticket.
-    Pass trigger=in_progress for the Bug/Task safety net (dedupes Ready).
+    Pass trigger=in_progress for delayed types (Bug/Task) to dedupe Ready.
+    Spike tickets are skipped for now.
     """
     _authorize(authorization)
     ticket = _ticket_from_prd_gate_body(body)
@@ -317,6 +318,6 @@ def run_server() -> int:
         "(Bearer PROVEPR_TRIGGER_SECRET)"
     )
     print("Thin Actions: POST /v1/pr-hook (review or skip).")
-    print("PM Automation: POST /v1/prd-gate (Story/Bug/Task soft gate).")
+    print("PM Automation: POST /v1/prd-gate (Story/Bug/Task/Feature soft gate).")
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0

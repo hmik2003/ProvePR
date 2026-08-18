@@ -14,7 +14,7 @@ ProvePR is designed as a **reviewer service**, not a ticket rewriter or status m
 
 ## Jira: mostly read; comments only for PRD gate
 
-[`src/provepr/jira_client.py`](src/provepr/jira_client.py) exposes **GET** helpers plus **`add_comment`** / **`list_comments`** for soft Story/Bug/Task quality gates.
+[`src/provepr/jira_client.py`](src/provepr/jira_client.py) exposes **GET** helpers plus **`add_comment`** / **`list_comments`** for soft Story/Bug/Task/Feature quality gates.
 
 ProvePR **never** transitions issues (no moving To Do → Backlog). Soft gate only.
 

@@ -59,28 +59,30 @@ No per-repo Jira/Gemini/Slack secrets — those live on Cloud Run only.
 
 ---
 
-## Wire Jira Automation (PM) — PROV first
+## Wire Jira Automation (PM) — PROV first, Sifu next
 
-**Rule A — Story → To Do**
+**Rule A — Story / Feature → To Do**
 
-- When: Issue transitioned → To Do; Type = Story; Project = PROV  
+- When: Issue transitioned → To Do; Type in (Story, Feature); Project = PROV (later Sifu)  
 - Then: Send web request  
   - URL: `https://provepr-2f6eho3aiq-uc.a.run.app/v1/prd-gate`  
   - Method: POST  
   - Headers: `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`, `Content-Type: application/json`  
   - Body: `{"issue":{"key":"{{issue.key}}"},"trigger":"to_do"}`
 
-**Rule B — Bug/Task → To Do (delayed)**
+**Rule B — Bug / Task → To Do (delayed)**
 
-- When: Issue transitioned → To Do; Type in (Bug, Task); Project = PROV  
-- Then: Delay **15–30 minutes**  
+- When: Issue transitioned → To Do; Type in (Bug, Task); Project = PROV (later Sifu)  
+- Then: Delay **15–30 minutes** (or a scheduled JQL rule if Delay is not on the plan)  
 - Then: same web request with `"trigger":"to_do"`
 
-**Rule C — Bug/Task → In Progress (safety net)**
+**Rule C — All gated types → In Progress (safety net)**
 
-- When: Issue transitioned → In Progress; Type in (Bug, Task); Project = PROV  
+- When: Issue transitioned → In Progress; Type in (Story, Feature, Bug, Task)  
 - Then: same web request with `"trigger":"in_progress"`  
   (Cloud Run no-ops if a prior KodiQA comment already said Ready)
+
+**Gated types:** Story, Bug, Task, Feature (aliases: User Story, New Feature, Defect). **Spike** and **Epic** are skipped on purpose.
 
 Do **not** enable these on company boards until PROV has run clean for a while.
 
@@ -101,7 +103,7 @@ Refresh with `python scripts/set_cloudrun_env.py` after rotating `.env`.
 ## Done means (private pilot exit criteria)
 
 - [ ] `/health` OK on Cloud Run  
-- [ ] Story + Bug + Task gates on PROV tickets (Ready / Needs work)  
+- [ ] Story + Bug + Task + Feature gates (Ready / Needs work); Spike + Epic skipped   
 - [ ] Ticketed PR → staging gets KodiQA review via **thin** Action  
 - [ ] No-ticket PR gets skip-notify via same Action  
 - [ ] Jira Automation rules A/B/C live on PROV only  

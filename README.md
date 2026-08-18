@@ -68,7 +68,7 @@ ProvePR tools only (no terminal/browser): Jira PRD (parent + subtasks) + GitHub 
 **Policies baked in:**
 - **1 ticket ↔ 1 PR** — exactly one Jira key in the PR title (multiple keys skip the Action).
 - **Development panel** — comment advises if the PR is not linked on the Jira ticket; **non-blocking**.
-- **Ticket quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` scores **Story / Bug / Task** checklists, **comments on the Jira ticket**, and **Slack-DMs QA**. Never changes status. HTTP: `POST /v1/prd-gate` for Jira Automation (Story → To Do; Bug/Task → To Do with delay + In Progress safety net via `"trigger":"in_progress"`). Optional: `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` to skip your own rich bugs.
+- **Ticket quality gate (soft)** — `python -m provepr prd-gate --ticket PROV-10` scores **Story / Bug / Task / Feature** checklists, **comments on the Jira ticket**, and **Slack-DMs QA**. Never changes status. **Spike** is skipped for now. HTTP: `POST /v1/prd-gate` for Jira Automation (Story/Feature → To Do; Bug/Task → To Do with delay + In Progress safety net via `"trigger":"in_progress"`). Optional: `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` to skip your own rich bugs.
 - **Skip notify** — if a PR has no Jira key (or multiple keys in the title), review is skipped (no Gemini) but QA gets a Slack DM + short PR comment via `skip-notify`.
 
 ---

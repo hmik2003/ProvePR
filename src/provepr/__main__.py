@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
 
     gate_parser = sub.add_parser(
         "prd-gate",
-        help="Soft quality gate for Story/Bug/Task (Jira comment + Slack; no transitions)",
+        help="Soft quality gate for Story/Bug/Task/Feature (Jira comment + Slack; no transitions)",
     )
     gate_parser.add_argument("--ticket", required=True, help="Jira issue key (e.g. PROV-10)")
     gate_parser.add_argument(

@@ -1,4 +1,4 @@
-"""Ticket quality gate — Story / Bug / Task checklists (soft; never blocks)."""
+"""Ticket quality gate — Story / Bug / Task / Feature (soft; Spike skipped)."""
 
 from __future__ import annotations
 
@@ -151,9 +151,87 @@ TASK_MANDATORY_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 TASK_RECOMMENDED_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
-STORY_TYPE_NAMES = ("Story",)
-BUG_TYPE_NAMES = ("Bug",)
+# --- Feature (product increment; larger than a Story, not a research ticket) ---
+FEATURE_MANDATORY_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "Problem / why",
+        (
+            "problem",
+            "opportunity",
+            "why we",
+            "why this",
+            "background",
+            "pain point",
+            "the issue",
+        ),
+    ),
+    (
+        "Outcome / value",
+        (
+            "outcome",
+            "value",
+            "impact",
+            "benefit",
+            "what success looks",
+            "we will enable",
+            "users will",
+        ),
+    ),
+    (
+        "Scope / in-scope",
+        (
+            "in-scope",
+            "in scope",
+            "scope:",
+            "scope /",
+            "what's in scope",
+            "what is in scope",
+            "this feature includes",
+        ),
+    ),
+    (
+        "Acceptance criteria",
+        (
+            "acceptance criteria",
+            "acceptance criterion",
+            "ac:",
+            "given ",
+            "then ",
+            "given/when",
+        ),
+    ),
+    (
+        "Success / done when",
+        (
+            "success metric",
+            "success:",
+            "kpi",
+            "done when",
+            "definition of done",
+            "how we'll know",
+            "how we will know",
+            "measurable",
+        ),
+    ),
+)
+
+FEATURE_RECOMMENDED_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Out of scope", ("out of scope", "out-of-scope", "non-goals", "not in scope")),
+    ("Dependencies", ("dependenc", "assumption", "blocked by", "child stor", "breakdown")),
+    (
+        "User / persona",
+        ("persona", "target user", "who is this for", "user context"),
+    ),
+    ("Risks / rollout", ("risk", "rollout", "migration", "feature flag")),
+)
+
+STORY_TYPE_NAMES = ("Story", "User Story")
+BUG_TYPE_NAMES = ("Bug", "Defect")
 TASK_TYPE_NAMES = ("Task",)
+FEATURE_TYPE_NAMES = ("Feature", "New Feature")
+# Spikes are research tickets — skip for now (same as Epic).
+SPIKE_TYPE_NAMES = ("Spike", "Research")
+GATED_TYPE_LABEL = "Story/Bug/Task/Feature"
 
 GATE_MARKER = "KodiQA"
 GATE_READY_MARKERS = ("Verdict: Ready", "Verdict: **Ready**")
@@ -180,7 +258,7 @@ class PrdGateResult:
     present_count: int
     mandatory_total: int
     subtask_count: int
-    checklist: str = "story"  # story | bug | task | none
+    checklist: str = "story"  # story | bug | task | feature | none
     trigger: str = ""
 
     @property
@@ -264,6 +342,10 @@ def score_task_text(prd_text: str) -> tuple[tuple[SectionResult, ...], tuple[Sec
     return score_sections(prd_text, TASK_MANDATORY_SECTIONS, TASK_RECOMMENDED_SECTIONS)
 
 
+def score_feature_text(prd_text: str) -> tuple[tuple[SectionResult, ...], tuple[SectionResult, ...]]:
+    return score_sections(prd_text, FEATURE_MANDATORY_SECTIONS, FEATURE_RECOMMENDED_SECTIONS)
+
+
 def prior_gate_was_ready(comment_bodies: list[str]) -> bool:
     """True if a prior KodiQA gate comment already marked Ready (In Progress dedupe)."""
     for body in comment_bodies:
@@ -287,13 +369,15 @@ def evaluate_prd_gate(
     story_type_names: tuple[str, ...] = STORY_TYPE_NAMES,
     bug_type_names: tuple[str, ...] = BUG_TYPE_NAMES,
     task_type_names: tuple[str, ...] = TASK_TYPE_NAMES,
+    feature_type_names: tuple[str, ...] = FEATURE_TYPE_NAMES,
+    spike_type_names: tuple[str, ...] = SPIKE_TYPE_NAMES,
     reporter_email: str = "",
     bug_skip_reporter_emails: tuple[str, ...] = (),
     trigger: str = "",
     prior_ready: bool = False,
 ) -> PrdGateResult:
     """
-    Soft gate for Story / Bug / Task. Other types are Skipped.
+    Soft gate for Story / Bug / Task / Feature. Spike and other types are Skipped.
 
     Never transitions issues. In Progress safety net: if trigger=in_progress and a
     prior KodiQA comment already said Ready, skip (no double-nag).
@@ -347,6 +431,27 @@ def evaluate_prd_gate(
     elif _type_matches(issue_type, task_type_names):
         checklist = "task"
         mandatory, recommended = score_task_text(prd_text)
+    elif _type_matches(issue_type, feature_type_names):
+        checklist = "feature"
+        mandatory, recommended = score_feature_text(prd_text)
+    elif _type_matches(issue_type, spike_type_names):
+        return PrdGateResult(
+            ticket_key=ticket_key,
+            issue_type=issue_type,
+            status=status,
+            skipped=True,
+            skip_reason=(
+                f"Issue type `{issue_type}` (Spike) is not gated yet — skipped"
+            ),
+            verdict="Skipped",
+            mandatory=(),
+            recommended=(),
+            present_count=0,
+            mandatory_total=0,
+            subtask_count=subtask_count,
+            checklist="none",
+            trigger=trigger_norm,
+        )
     else:
         return PrdGateResult(
             ticket_key=ticket_key,
@@ -354,7 +459,7 @@ def evaluate_prd_gate(
             status=status,
             skipped=True,
             skip_reason=(
-                f"Issue type `{issue_type}` is not Story/Bug/Task — gate skipped"
+                f"Issue type `{issue_type}` is not {GATED_TYPE_LABEL} — gate skipped"
             ),
             verdict="Skipped",
             mandatory=(),
@@ -395,20 +500,44 @@ def _audience_label(checklist: str) -> str:
 
 
 def _ticket_noun(checklist: str) -> str:
-    if checklist == "bug":
-        return "Bug"
-    if checklist == "task":
-        return "Task"
-    return "Story"
+    return {
+        "bug": "Bug",
+        "task": "Task",
+        "feature": "Feature",
+        "story": "Story",
+    }.get(checklist, "ticket")
+
+
+def _gate_title(checklist: str) -> str:
+    return {
+        "bug": "Bug quality gate",
+        "task": "Task quality gate",
+        "feature": "Feature quality gate",
+        "story": "PRD gate",
+    }.get(checklist, "quality gate")
+
+
+def _slack_label(checklist: str) -> str:
+    return {
+        "bug": "Bug gate",
+        "task": "Task gate",
+        "feature": "Feature gate",
+        "story": "PRD gate",
+    }.get(checklist, "gate")
+
+
+def _jira_heading(checklist: str) -> str:
+    return {
+        "bug": "KodiQA Bug quality gate",
+        "task": "KodiQA Task quality gate",
+        "feature": "KodiQA Feature quality gate",
+        "story": "KodiQA PRD quality gate",
+    }.get(checklist, "KodiQA quality gate")
 
 
 def format_prd_gate_report(result: PrdGateResult) -> str:
     """Human-readable report for CLI / Slack."""
-    title = {
-        "bug": "Bug quality gate",
-        "task": "Task quality gate",
-        "story": "PRD gate",
-    }.get(result.checklist, "quality gate")
+    title = _gate_title(result.checklist)
     lines = [
         f"### KodiQA {title} — `{result.ticket_key}`",
         f"- Type: {result.issue_type}  |  Status: {result.status}",
@@ -454,11 +583,7 @@ def format_prd_gate_report(result: PrdGateResult) -> str:
 
 def format_prd_gate_slack(result: PrdGateResult) -> str:
     """Short Slack DM for QA lead."""
-    label = {
-        "bug": "Bug gate",
-        "task": "Task gate",
-        "story": "PRD gate",
-    }.get(result.checklist, "gate")
+    label = _slack_label(result.checklist)
     if result.skipped:
         return (
             f"KodiQA {label} skipped `{result.ticket_key}` "
@@ -515,11 +640,7 @@ def _adf_bullet(items: list[str]) -> dict:
 
 def format_prd_gate_jira_adf(result: PrdGateResult) -> dict:
     """Atlassian Document Format body for a creator-facing ticket comment."""
-    heading = {
-        "bug": "KodiQA Bug quality gate",
-        "task": "KodiQA Task quality gate",
-        "story": "KodiQA PRD quality gate",
-    }.get(result.checklist, "KodiQA quality gate")
+    heading = _jira_heading(result.checklist)
 
     nodes: list[dict] = [
         _adf_heading(heading, 2),

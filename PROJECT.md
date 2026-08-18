@@ -6,7 +6,7 @@
 **Tagline:** ProvePR — AI PR Reviewer  
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
-**Last updated:** 2026-07-23  
+**Last updated:** 2026-08-18  
 **Status:** Sprint 8 **live on Cloud Run** — `https://provepr-2f6eho3aiq-uc.a.run.app`; next = Jira Automation + Actions secret refresh  
 **Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
 
@@ -137,22 +137,24 @@ Think of Hermes as an automated **PR review checklist**, not a robot that opens 
 
 **Development panel:** ProvePR checks whether this PR appears under the ticket's Jira **Development** section. If not, the GitHub comment asks the author to link it. This is **advisory only** — it never blocks the review or merge.
 
-**Ticket quality gate (PM / QA / creators):** Soft check for **Story**, **Bug**, and **Task**. Scores mandatory sections (parent + subtasks), **comments on the ticket**, and **Slack-DMs QA**. Soft only — **never** moves the ticket back to backlog or changes status.
+**Ticket quality gate (PM / QA / creators):** Soft check for **Story**, **Bug**, **Task**, and **Feature**. Scores mandatory sections (parent + subtasks), **comments on the ticket**, and **Slack-DMs QA**. Soft only — **never** moves the ticket back to backlog or changes status. **Spike** (and Epic) are skipped for now.
 
 | Type | When (Jira Automation) | Mandatory (soft) | Notes |
 |------|------------------------|------------------|--------|
 | **Story** | → **To Do** | Goals, Persona, User stories, Functional reqs, AC, Success metrics, Scope | Full PRD bar |
+| **Feature** | → **To Do** (same as Story) | Problem/why, Outcome/value, Scope, **Acceptance criteria**, Success/done when | Larger product increment; not a user-story format |
 | **Bug** | → **To Do** then **delay 15–30 min** (primary); → **In Progress** safety net | Description, Steps to reproduce, Expected, Actual, Environment | Attachments recommended; optional skip list `PRD_GATE_BUG_SKIP_REPORTER_EMAILS` |
 | **Task** | Same as Bug | Goal, Done when, Scope / out of scope | Light — not a full Story PRD |
+| **Spike** | — | — | **Skipped** for now (research tickets) |
 
 **Do not** trigger on bare Issue created (title-only shells). Delay after To Do gives creators time to fill the body.
 
 **In Progress safety net:** body `{"issue":{"key":"{{issue.key}}"},"trigger":"in_progress"}`. If a prior KodiQA comment already said **Ready**, ProvePR no-ops (no double-nag). If never checked or still Needs work, comments + Slack again.
 
 Jira Automation (once Cloud Run / public URL exists):
-1. Story → To Do → `POST /v1/prd-gate` `{"issue":{"key":"{{issue.key}}"},"trigger":"to_do"}`
+1. Story/Feature → To Do → `POST /v1/prd-gate` `{"issue":{"key":"{{issue.key}}"},"trigger":"to_do"}`
 2. Bug/Task → To Do → Delay 15–30m → same URL with `"trigger":"to_do"`
-3. Bug/Task → In Progress → same URL with `"trigger":"in_progress"`
+3. Story/Feature/Bug/Task → In Progress → same URL with `"trigger":"in_progress"`
 4. Header: `Authorization: Bearer <PROVEPR_TRIGGER_SECRET>`
 
 Until then: `python -m provepr prd-gate --ticket PROV-10` (add `--trigger in_progress` to test the safety net).
@@ -322,3 +324,4 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-08-03 | Bug + Task gates | Soft checklists for Bug (QA template) and Task (light Goal/Done-when/Scope); delayed To Do + In Progress safety net (`trigger=in_progress` dedupes Ready); optional `PRD_GATE_BUG_SKIP_REPORTER_EMAILS`. |
 | 2026-08-17 | Sprint 8 Cloud Run | Billing enabled on `kodifly-qa-automations`; image built; service live at `https://provepr-2f6eho3aiq-uc.a.run.app`; smoked `/health` (hermes), `/v1/prd-gate` PROV-18 Ready 7/7, `/v1/review` PR #13 OK (no post). Next: Jira Automation + refresh Actions `JIRA_API_TOKEN`. |
 | 2026-08-17 | Production-like pilots | Bug/Task gates on `master`; `/v1/pr-hook` + `/v1/skip-notify`; thin demo-shop Action → Cloud Run; `docs/PRODUCTION_ROLLOUT.md` (pilot Dev+PM together on PROV, then more private repos, then company). |
+| 2026-08-18 | Feature gate (Spike skipped) | Soft checklist for **Feature** (problem/outcome/scope/success). **Spike** is skipped for now, same as Epic. |
