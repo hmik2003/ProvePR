@@ -6,7 +6,12 @@ from dataclasses import dataclass
 
 import httpx
 
-from provepr.config import bug_skip_reporter_emails, load_env, require_jira_settings
+from provepr.config import (
+    bug_skip_reporter_emails,
+    gate_skip_reporter_names,
+    load_env,
+    require_jira_settings,
+)
 from provepr.jira_client import JiraClient
 from provepr.jira_text import adf_to_text, build_prd_with_subtasks
 from provepr.prd_gate import (
@@ -35,6 +40,13 @@ def _reporter_email(fields: dict) -> str:
         return ""
     email = reporter.get("emailAddress") or reporter.get("email") or ""
     return str(email).strip()
+
+
+def _reporter_display_name(fields: dict) -> str:
+    reporter = fields.get("reporter")
+    if not isinstance(reporter, dict):
+        return ""
+    return str(reporter.get("displayName") or "").strip()
 
 
 def _comment_plain_bodies(comments: list[dict]) -> list[str]:
@@ -99,7 +111,9 @@ def execute_prd_gate(
             prd_text=prd,
             subtask_count=len(subtasks),
             reporter_email=_reporter_email(fields),
+            reporter_display_name=_reporter_display_name(fields),
             bug_skip_reporter_emails=bug_skip_reporter_emails(),
+            skip_reporter_names=gate_skip_reporter_names(),
             trigger=trigger_norm,
             prior_ready=prior_ready,
             prior_comment=prior_comment,

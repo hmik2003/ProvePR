@@ -377,7 +377,9 @@ def evaluate_prd_gate(
     feature_type_names: tuple[str, ...] = FEATURE_TYPE_NAMES,
     spike_type_names: tuple[str, ...] = SPIKE_TYPE_NAMES,
     reporter_email: str = "",
+    reporter_display_name: str = "",
     bug_skip_reporter_emails: tuple[str, ...] = (),
+    skip_reporter_names: tuple[str, ...] = (),
     trigger: str = "",
     prior_ready: bool = False,
     prior_comment: bool = False,
@@ -388,6 +390,7 @@ def evaluate_prd_gate(
     Never transitions issues.
     - trigger=in_progress + prior Ready → skip (no double-nag)
     - trigger=to_do + any prior KodiQA comment → skip (scheduled Backlog catch)
+    - reporter on skip list (email or display name) → skip all gated types
     """
     trigger_norm = (trigger or "").strip().lower().replace("-", "_")
     if trigger_norm in {"in_progress", "inprogress"} and prior_ready:
@@ -427,31 +430,37 @@ def evaluate_prd_gate(
             trigger=trigger_norm,
         )
 
+    email_skip = {e.strip().lower() for e in bug_skip_reporter_emails if e.strip()}
+    name_skip = {n.strip().lower() for n in skip_reporter_names if n.strip()}
+    reporter = (reporter_email or "").strip().lower()
+    reporter_name = (reporter_display_name or "").strip().lower()
+    if (reporter and reporter in email_skip) or (
+        reporter_name and reporter_name in name_skip
+    ):
+        who = reporter_email or reporter_display_name or "(unknown)"
+        return PrdGateResult(
+            ticket_key=ticket_key,
+            issue_type=issue_type,
+            status=status,
+            skipped=True,
+            skip_reason=(
+                f"Reporter `{who}` is on the skip list — gate skipped"
+            ),
+            verdict="Skipped",
+            mandatory=(),
+            recommended=(),
+            present_count=0,
+            mandatory_total=0,
+            subtask_count=subtask_count,
+            checklist="none",
+            trigger=trigger_norm,
+        )
+
     if _type_matches(issue_type, story_type_names):
         checklist = "story"
         mandatory, recommended = score_prd_text(prd_text)
     elif _type_matches(issue_type, bug_type_names):
         checklist = "bug"
-        skip_set = {e.strip().lower() for e in bug_skip_reporter_emails if e.strip()}
-        reporter = (reporter_email or "").strip().lower()
-        if reporter and reporter in skip_set:
-            return PrdGateResult(
-                ticket_key=ticket_key,
-                issue_type=issue_type,
-                status=status,
-                skipped=True,
-                skip_reason=(
-                    f"Bug reporter `{reporter_email}` is on the skip list — gate skipped"
-                ),
-                verdict="Skipped",
-                mandatory=(),
-                recommended=(),
-                present_count=0,
-                mandatory_total=len(BUG_MANDATORY_SECTIONS),
-                subtask_count=subtask_count,
-                checklist="bug",
-                trigger=trigger_norm,
-            )
         mandatory, recommended = score_bug_text(prd_text)
     elif _type_matches(issue_type, task_type_names):
         checklist = "task"

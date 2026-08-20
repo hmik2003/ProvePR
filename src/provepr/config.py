@@ -142,13 +142,33 @@ def require_gemini_settings() -> GeminiSettings:
 
 def bug_skip_reporter_emails() -> tuple[str, ...]:
     """
-    Comma-separated reporter emails whose Bugs skip the soft quality gate.
+    Comma-separated reporter emails whose tickets skip the soft quality gate
+    (all gated types: Story/Bug/Task/Feature).
 
-    Env: PRD_GATE_BUG_SKIP_REPORTER_EMAILS
+    Env (preferred): PRD_GATE_SKIP_REPORTER_EMAILS
+    Legacy alias:    PRD_GATE_BUG_SKIP_REPORTER_EMAILS
     Example: ibrahim.kayani@kodifly.com
     """
     load_env()
-    raw = (os.getenv("PRD_GATE_BUG_SKIP_REPORTER_EMAILS") or "").strip()
+    raw = (
+        os.getenv("PRD_GATE_SKIP_REPORTER_EMAILS")
+        or os.getenv("PRD_GATE_BUG_SKIP_REPORTER_EMAILS")
+        or ""
+    ).strip()
+    if not raw:
+        return ()
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
+
+def gate_skip_reporter_names() -> tuple[str, ...]:
+    """
+    Comma-separated reporter display names whose tickets skip the soft gate.
+
+    Env: PRD_GATE_SKIP_REPORTER_NAMES
+    Example: Ibrahim Kayani
+    """
+    load_env()
+    raw = (os.getenv("PRD_GATE_SKIP_REPORTER_NAMES") or "").strip()
     if not raw:
         return ()
     return tuple(part.strip() for part in raw.split(",") if part.strip())

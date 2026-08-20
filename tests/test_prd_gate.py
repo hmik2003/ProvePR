@@ -204,6 +204,38 @@ def test_bug_skip_reporter():
     assert "skip list" in result.skip_reason.lower()
 
 
+def test_skip_reporter_applies_to_all_gated_types():
+    for issue_type, body in (
+        ("Story", THIN_PRD),
+        ("Feature", THIN_FEATURE),
+        ("Task", THIN_TASK),
+        ("Bug", THIN_BUG),
+    ):
+        result = evaluate_prd_gate(
+            ticket_key="KS-1",
+            issue_type=issue_type,
+            status="To Do",
+            prd_text=body,
+            reporter_email="ibrahim.kayani@kodifly.com",
+            bug_skip_reporter_emails=("ibrahim.kayani@kodifly.com",),
+        )
+        assert result.skipped, issue_type
+        assert "skip list" in result.skip_reason.lower()
+
+
+def test_skip_reporter_by_display_name():
+    result = evaluate_prd_gate(
+        ticket_key="KS-2",
+        issue_type="Bug",
+        status="To Do",
+        prd_text=THIN_BUG,
+        reporter_display_name="Ibrahim Kayani",
+        skip_reporter_names=("Ibrahim Kayani",),
+    )
+    assert result.skipped
+    assert "Ibrahim Kayani" in result.skip_reason
+
+
 def test_task_ready_and_thin():
     rich = evaluate_prd_gate(
         ticket_key="PROV-30",
