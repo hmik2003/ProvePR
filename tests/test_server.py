@@ -71,9 +71,10 @@ def test_prd_gate_endpoint(monkeypatch):
             (),
             {
                 "result": FakeResult(),
-                "jira_comment_url": "http://jira/comment",
+                # Ready tickets stay silent — no Jira comment URL
+                "jira_comment_url": None,
                 "report": "ok",
-                "slack_detail": "Slack OK",
+                "slack_detail": "",
             },
         )(),
     )
@@ -87,7 +88,7 @@ def test_prd_gate_endpoint(monkeypatch):
     body = response.json()
     assert body["ok"] is True
     assert body["verdict"] == "Ready"
-    assert body["jira_commented"] is True
+    assert body["jira_commented"] is False
 
 
 def test_prd_gate_accepts_jira_automation_shape(monkeypatch):

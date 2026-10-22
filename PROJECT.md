@@ -6,9 +6,9 @@
 **Tagline:** ProvePR — AI PR Reviewer  
 **Repo folder:** `ProvePR`  
 **Python package:** `provepr`  
-**Last updated:** 2026-08-18  
-**Status:** Sprint 8 **live on Cloud Run** — `https://provepr-2f6eho3aiq-uc.a.run.app`; next = Jira Automation + Actions secret refresh  
-**Partners:** Lead QA (hmik2003) + Lead SE (Cursor agent)
+**Last updated:** 2026-10-22  
+**Status:** Cloud Run live; **KodiQA PM** on **KS** (Sifu) + wiring **SX** (Spatial Sense); Jira comments via **`dev@kodifly.com`**; **KodiQA Dev** on **`getsifu-dev`** → **`staging`**  
+**Partners:** Lead QA (hmik2003 / `ibrahimkayani-kodifly`) + Lead SE (Cursor agent)
 
 ---
 
@@ -176,7 +176,7 @@ If no Jira ID is found on a PR, the Action skips the review (safe failure) and n
 | **6 / Sprint 7** | GitHub Action on personal `hmik2003` repo → `staging` | No | **Done** |
 | **Hermes + Docker** | Hermes tool loop + single Dockerfile for Cloud Run | No (local Docker) | **Done** |
 | **7 / Sprint 8** | Deploy image to Google Cloud Run | **Yes — billing on project** | **Done** — `https://provepr-2f6eho3aiq-uc.a.run.app` (`kodifly-qa-automations` / us-central1); `/health` + `/v1/prd-gate` smoked |
-| **8 / Sprint 9** | First company pilot (any product board/repo) | **Yes — repo/Slack admin as needed** | Pending |
+| **8 / Sprint 9** | First company pilot — Sifu: Jira **KS** (PM) + GitHub **`getsifu-dev`** Dev on PRs → **`staging`** | **Yes — CTO: KodiQA App + Actions secrets** | **PM live on KS**; Dev blocked on App/secrets |
 
 ### Monday next (2026-07-24 handoff — resume here)
 
@@ -250,10 +250,43 @@ If no Jira ID is found on a PR, the Action skips the review (safe failure) and n
 
 ---
 
+## 8b. Company pilot — Kodifly Sifu (locked 2026-09-10)
+
+Confirmed with senior Sifu Dev + CTO sync context:
+
+### Jira
+- Board / project key: **KS** (Kodifly-Sifu) — **KodiQA PM** soft gates live here.
+
+### GitHub (Sifu has 3 repos total)
+| Repo | Role for KodiQA | Status |
+|------|-----------------|--------|
+| **`getsifu-dev`** | **Only repo in scope for KodiQA Dev right now** | Wire App + thin Action + secrets |
+| Other Sifu repo (AI-related) | Out of scope | Do not install / do not review |
+| Other Sifu repo (other) | Out of scope | Do not install / do not review |
+| Prod / non-dev variants (e.g. `getsifu`) | Out of scope | Explicitly excluded |
+
+### Branch model on `getsifu-dev`
+- Multiple feature / source branches (and other inputs) **merge into `staging`**.
+- **`staging` → `main`** exists but **`main` is out of scope** for KodiQA Dev.
+- **Trigger:** open/update PR **into `staging` only** (same product rule as sandbox). Workflow `branches: [staging]`.
+
+### Work account
+- Use **`ibrahimkayani-kodifly`** (not personal `hmik2003`) for company GitHub work.
+- Write access granted on **`getsifu-dev` only**.
+
+---
+
 ## 9. Open items
 
 - [ ] Exact Gemini model ID after first `hermes model` / AI Studio check
-- [ ] Real Jira project key for first pilot board (any readable ticket is enough for Sprint 3 tests)
+- [x] First company pilot board — **KS** (Sifu)
+- [x] First company Dev repo — **`getsifu-dev`**, base branch **`staging`** (other 2 Sifu repos + `main` out of scope)
+- [x] CTO: `PROVEPR_URL` + `PROVEPR_TRIGGER_SECRET` set on `getsifu-dev` (2026-09-10)
+- [x] Transfer **KodiQA** GitHub App → **Kodifly**; install on `getsifu-dev` (install id `160554618`); Cloud Run env updated (`provepr-00010-z64`)
+- [x] Smoke PR #567 — `kodiqa[bot]` review published (2026-09-14) after Kodifly org ownership + `pull_requests: write`
+- [ ] Drop App **Issues** permission (keep `pull_requests: write` + `metadata: read`); Saad accepts if prompted
+- [ ] Rotate `PROVEPR_TRIGGER_SECRET` on a call (Cloud Run + Jira Automation + `getsifu-dev` Actions)
+- [ ] After smoke: rotate `PROVEPR_TRIGGER_SECRET` (Cloud Run + Jira Automation + Actions) — share new value on call, not Slack
 - [x] Personal test repo under `hmik2003` — **https://github.com/hmik2003/ProvePR** (sample PR #1 for fetch tests)
 - [x] Sprint 3 live ticket used: **SX-2869** (Spatial Sense) — summary + description readable via API
 - [ ] Where PRD text lives in Jira (description vs custom field / AC) — Sprint 3 uses **summary + description** first; revisit if AC is a custom field
@@ -325,3 +358,5 @@ Just the **issue key** (looks like `PROJ-105` or `SQA-12`), not the API token ag
 | 2026-08-17 | Sprint 8 Cloud Run | Billing enabled on `kodifly-qa-automations`; image built; service live at `https://provepr-2f6eho3aiq-uc.a.run.app`; smoked `/health` (hermes), `/v1/prd-gate` PROV-18 Ready 7/7, `/v1/review` PR #13 OK (no post). Next: Jira Automation + refresh Actions `JIRA_API_TOKEN`. |
 | 2026-08-17 | Production-like pilots | Bug/Task gates on `master`; `/v1/pr-hook` + `/v1/skip-notify`; thin demo-shop Action → Cloud Run; `docs/PRODUCTION_ROLLOUT.md` (pilot Dev+PM together on PROV, then more private repos, then company). |
 | 2026-08-18 | Feature gate (Spike skipped) | Soft checklist for **Feature** (problem/outcome/scope/success). **Spike** is skipped for now, same as Epic. |
+| 2026-09-10 | Sifu Dev scope locked | Sifu has **3 GitHub repos**; KodiQA Dev **only** on **`getsifu-dev`**. PRs → **`staging`** (multi-branch → staging → main; **`main` out of scope**). Other 2 repos (AI / other) not wired. PM remains on Jira **KS**. |
+| 2026-09-10 | CTO unblock | Secrets set on `getsifu-dev`. Before App install: **transfer KodiQA App → Kodifly**; scopes = Issues write + PRs read only; rotate trigger secret after smoke (not in Slack). |

@@ -35,7 +35,14 @@ class GeminiClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
-    def generate_text(self, *, system: str, user: str) -> str:
+    def generate_text(
+        self,
+        *,
+        system: str,
+        user: str,
+        max_output_tokens: int = 4096,
+        temperature: float = 0.2,
+    ) -> str:
         """Call generateContent exactly once. Raises on HTTP errors."""
         model = self._settings.model
         path = f"/models/{model}:generateContent"
@@ -43,8 +50,8 @@ class GeminiClient:
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 4096,
+                "temperature": temperature,
+                "maxOutputTokens": max_output_tokens,
             },
         }
         response = self._client.post(

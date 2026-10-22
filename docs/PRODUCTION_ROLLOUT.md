@@ -18,8 +18,21 @@ You do **not** need two Cloud Run deploys. Dev (`/v1/review`, `/v1/pr-hook`) and
    - Thin GitHub Action → Cloud Run (`/v1/pr-hook`)  
    - Jira Automation on **PROV only** → `/v1/prd-gate`  
 2. **More private repos** — copy the thin workflow; install KodiQA App; add 2 secrets  
-3. **Company pilot board/repo** — bot Jira user + App install + same Action template  
-4. **Scale** — more products after one successful company pilot
+3. **Company pilot (Sifu)** — Jira **KS** (PM) + GitHub **`getsifu-dev`** (Dev)  
+4. **Scale** — other Sifu repos / products only after `getsifu-dev` → `staging` is proven
+
+### Sifu GitHub scope (locked 2026-09-10)
+
+Senior Sifu Dev confirmed: the product has **three** GitHub repos. For KodiQA Dev we touch **one**:
+
+| Repo | KodiQA Dev |
+|------|------------|
+| **`getsifu-dev`** | **In scope** — install App, thin Action, 2 secrets |
+| Other 2 Sifu repos (AI / other) | **Out of scope** for now |
+| `main` on `getsifu-dev` | **Out of scope** — do not trigger reviews into `main` |
+
+**Branch model on `getsifu-dev`:** many input branches merge into **`staging`**; `staging` later goes to `main`.  
+**Trigger:** PR opened/updated **into `staging` only** (`branches: [staging]` in the thin workflow).
 
 **Why not “PM first”?** Creators feel the gate before eng trusts the review. Run both on PROV so you learn Automation + Action failure modes together, without risking company boards.
 
@@ -49,11 +62,11 @@ You do **not** need two Cloud Run deploys. Dev (`/v1/review`, `/v1/pr-hook`) and
 ## Add a new private repo (Dev) — checklist
 
 1. Install **KodiQA** GitHub App on the repo (Pull requests: Read & write).
-2. Copy [`.github/workflows/provepr-cloudrun.yml`](./github-action-cloudrun.yml) into the repo (target branch = your integration branch, usually `staging`).
+2. Copy [`.github/workflows/provepr-cloudrun.yml`](./github-action-cloudrun.yml) into the repo. For **`getsifu-dev`**, keep `branches: [staging]` (do not use `main`).
 3. Repo Actions secrets:
    - `PROVEPR_URL` = `https://provepr-2f6eho3aiq-uc.a.run.app`
    - `PROVEPR_TRIGGER_SECRET` = same as Cloud Run
-4. Open a PR titled `PROJ-123: …` → staging; confirm KodiQA comment + Slack.
+4. Open a PR titled `KS-123: …` → **staging**; confirm KodiQA comment + Slack.
 
 No per-repo Jira/Gemini/Slack secrets — those live on Cloud Run only.
 
@@ -92,6 +105,12 @@ On team-managed Kanban (KS), Backlog is a **location**, not a status. Tickets in
   (Cloud Run no-ops if a prior KodiQA comment already said Ready)
 
 **Gated types:** Story, Bug, Task, Feature (aliases: User Story, New Feature, Defect). **Spike** and **Epic** are skipped on purpose.
+
+**Noise control (2026-10-22):** Jira comment + Slack only when verdict is **Needs work**. **Ready** tickets are scored but stay silent (no comment, no DM).
+
+**Ambiguous-only AI (2026-10-22):** Heuristics first (free). Gemini runs only when there are gaps **and** the ticket body is substantial (possible false negatives). Clear Ready + thin stubs skip the model. Kill switch: `PRD_GATE_AI=0`. Optional model: `PRD_GATE_GEMINI_MODEL`.
+
+**Comment / Slack templates (2026-10-22):** Gaps-only, human voice. Jira speaks to the creator (“Your ticket…”). Slack speaks to QA (“Hey, KEY needs a quality pass”) with reporter, assignee, and Trigger To Do / In Progress. Bold field names + short hints. No OK/MISSING scorecard.
 
 Do **not** enable these on company boards until PROV has run clean for a while.
 

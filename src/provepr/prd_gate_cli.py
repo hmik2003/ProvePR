@@ -23,6 +23,7 @@ from provepr.prd_gate import (
     prior_gate_comment_exists,
     prior_gate_was_ready,
 )
+from provepr.prd_gate_ai import maybe_refine_prd_gate_result
 from provepr.slack import notify_slack
 
 
@@ -47,6 +48,21 @@ def _reporter_display_name(fields: dict) -> str:
     if not isinstance(reporter, dict):
         return ""
     return str(reporter.get("displayName") or "").strip()
+
+
+def _reporter_account_id(fields: dict) -> str:
+    reporter = fields.get("reporter")
+    if not isinstance(reporter, dict):
+        return ""
+    return str(reporter.get("accountId") or "").strip()
+
+
+def _assignee_display_name(fields: dict) -> str:
+    assignee = fields.get("assignee")
+    if not isinstance(assignee, dict) or not assignee:
+        return "Unassigned"
+    name = str(assignee.get("displayName") or assignee.get("emailAddress") or "").strip()
+    return name or "Unassigned"
 
 
 def _comment_plain_bodies(comments: list[dict]) -> list[str]:
@@ -81,6 +97,8 @@ def execute_prd_gate(
         raise ValueError("--ticket KEY is required")
 
     trigger_norm = (trigger or "").strip().lower().replace("-", "_")
+    reporter_name = ""
+    assignee_name = "Unassigned"
 
     with JiraClient(require_jira_settings()) as jira:
         issue = jira.get_issue(key)
@@ -118,20 +136,43 @@ def execute_prd_gate(
             prior_ready=prior_ready,
             prior_comment=prior_comment,
         )
+        # Heuristics first (free). Gemini only when gaps + substantial body.
+        result = maybe_refine_prd_gate_result(result, prd)
         report = format_prd_gate_report(result)
+        reporter_name = _reporter_display_name(fields)
+        reporter_account_id = _reporter_account_id(fields)
+        assignee_name = _assignee_display_name(fields)
+
+        # Noise control: only publish when there are gaps. Ready / Skipped stay quiet
+        # so PMs and creators are not interrupted on already-complete tickets.
+        should_publish = (
+            not result.skipped and result.verdict == "Needs work"
+        )
 
         comment_url: str | None = None
-        if comment and not result.skipped:
+        if comment and should_publish:
             posted = jira.add_comment(
-                result.ticket_key, format_prd_gate_jira_adf(result)
+                result.ticket_key,
+                format_prd_gate_jira_adf(
+                    result,
+                    reporter_account_id=reporter_account_id,
+                    reporter_display_name=reporter_name,
+                ),
             )
             comment_url = (
                 (posted.get("self") if isinstance(posted, dict) else None) or None
             )
 
     slack_detail = ""
-    if notify and not result.skipped:
-        slack = notify_slack(format_prd_gate_slack(result), kind="pm")
+    if notify and not result.skipped and result.verdict == "Needs work":
+        slack = notify_slack(
+            format_prd_gate_slack(
+                result,
+                reporter=reporter_name,
+                assignee=assignee_name,
+            ),
+            kind="pm",
+        )
         slack_detail = slack.detail
 
     return PrdGateRun(
@@ -172,11 +213,17 @@ def run_prd_gate(
     print(run.report)
     if run.jira_comment_url:
         print(f"Jira comment: posted ({run.jira_comment_url})")
-    elif comment and not run.result.skipped:
+    elif comment and run.result.skipped:
+        print("Jira comment: skipped")
+    elif comment and run.result.is_ready:
+        print("Jira comment: silent (Ready — no gaps)")
+    elif comment:
         print("Jira comment: posted")
     if notify:
         if run.result.skipped:
             print("Slack: skipped")
+        elif run.result.is_ready:
+            print("Slack: silent (Ready — no gaps)")
         else:
             print(f"Slack: {run.slack_detail or '(no detail)'}")
 
@@ -184,7 +231,7 @@ def run_prd_gate(
         print("=== Gate skipped ===")
         return 0
     if run.result.is_ready:
-        print("=== Gate Ready (status unchanged) ===")
+        print("=== Gate Ready (silent; status unchanged) ===")
         return 0
     print("=== Gate Needs work (non-blocking; status unchanged) ===")
     return 0

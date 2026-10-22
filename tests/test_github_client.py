@@ -72,6 +72,31 @@ def test_get_pull_request_diff_ok():
 
 
 @respx.mock
+def test_get_pull_request_diff_falls_back_to_files_on_403():
+    respx.get("https://api.github.com/repos/hmik2003/ProvePR/pulls/1").mock(
+        return_value=httpx.Response(
+            403, json={"message": "Resource not accessible by integration"}
+        )
+    )
+    respx.get("https://api.github.com/repos/hmik2003/ProvePR/pulls/1/files").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "filename": "docs/smoke.md",
+                    "status": "added",
+                    "patch": "@@ -0,0 +1,2 @@\n+# smoke\n+ok\n",
+                }
+            ],
+        )
+    )
+    client = GitHubClient(GitHubSettings(token="ghp_test"))
+    diff = client.get_pull_request_diff("hmik2003/ProvePR", 1)
+    assert "docs/smoke.md" in diff
+    assert "+# smoke" in diff
+
+
+@respx.mock
 def test_create_issue_comment_ok():
     respx.post("https://api.github.com/repos/hmik2003/ProvePR/issues/1/comments").mock(
         return_value=httpx.Response(

@@ -169,8 +169,8 @@ def trigger_prd_gate(
     """
     Soft Story / Bug / Task / Feature quality gate for Jira Automation.
 
-    Leaves a Jira comment + Slack DM for QA. Never transitions the ticket.
-    Pass trigger=in_progress for delayed types (Bug/Task) to dedupe Ready.
+    Comments + Slack only when verdict is Needs work (Ready stays silent).
+    Never transitions the ticket. Pass trigger=in_progress for the safety net.
     Spike tickets are skipped for now.
     """
     _authorize(authorization)
@@ -197,8 +197,7 @@ def trigger_prd_gate(
         verdict=result.verdict,
         skipped=result.skipped,
         detail=result.skip_reason or f"{result.present_count}/{result.mandatory_total}",
-        jira_commented=bool(run.jira_comment_url)
-        or (body.comment and not result.skipped),
+        jira_commented=bool(run.jira_comment_url),
     )
 
 

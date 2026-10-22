@@ -26,6 +26,14 @@ jobs:
         env:
           PROVEPR_URL: ${{ secrets.PROVEPR_URL }}
           PROVEPR_TRIGGER_SECRET: ${{ secrets.PROVEPR_TRIGGER_SECRET }}
+          # Never interpolate PR title/body into the script source — they are
+          # untrusted and would run as shell if expanded inside the run: block.
+          PR_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
           if [ -z "${PROVEPR_URL:-}" ] || [ -z "${PROVEPR_TRIGGER_SECRET:-}" ]; then
@@ -33,12 +41,12 @@ jobs:
             exit 1
           fi
           BODY=$(jq -n \
-            --arg repo "${{ github.repository }}" \
-            --argjson pr "${{ github.event.pull_request.number }}" \
-            --arg title "${{ github.event.pull_request.title }}" \
-            --arg body "${{ github.event.pull_request.body }}" \
-            --arg branch "${{ github.head_ref }}" \
-            --arg pr_url "${{ github.event.pull_request.html_url }}" \
+            --arg repo "$PR_REPO" \
+            --argjson pr "$PR_NUMBER" \
+            --arg title "$PR_TITLE" \
+            --arg body "$PR_BODY" \
+            --arg branch "$PR_BRANCH" \
+            --arg pr_url "$PR_URL" \
             '{repo:$repo, pr:$pr, title:$title, body:$body, branch:$branch, pr_url:$pr_url, post:true}')
           curl -sS -f -X POST "${PROVEPR_URL%/}/v1/pr-hook" \
             -H "Authorization: Bearer ${PROVEPR_TRIGGER_SECRET}" \

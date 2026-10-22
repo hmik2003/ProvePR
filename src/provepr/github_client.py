@@ -54,15 +54,60 @@ class GitHubClient:
         return response.json()
 
     def get_pull_request_diff(self, full_name: str, number: int) -> str:
+        """
+        Return unified diff text for a PR.
+
+        Prefer the pull diff media type. If that returns 403 (common when the
+        App lacks Contents: Read), fall back to concatenating per-file patches
+        from GET /pulls/{n}/files (works with Pull requests: Read alone).
+        """
         response = self._client.get(
             f"/repos/{full_name}/pulls/{number}",
             headers={"Accept": "application/vnd.github.diff"},
         )
+        if response.status_code == 403:
+            return self._diff_from_pull_files(full_name, number)
         response.raise_for_status()
         return response.text
 
+    def _diff_from_pull_files(self, full_name: str, number: int) -> str:
+        chunks: list[str] = []
+        page = 1
+        while True:
+            response = self._client.get(
+                f"/repos/{full_name}/pulls/{number}/files",
+                params={"per_page": 100, "page": page},
+            )
+            response.raise_for_status()
+            files = response.json()
+            if not isinstance(files, list) or not files:
+                break
+            for item in files:
+                if not isinstance(item, dict):
+                    continue
+                filename = item.get("filename") or "file"
+                status = item.get("status") or "modified"
+                patch = item.get("patch")
+                chunks.append(f"--- a/{filename} ({status})")
+                chunks.append(f"+++ b/{filename}")
+                if isinstance(patch, str) and patch.strip():
+                    chunks.append(patch)
+                else:
+                    chunks.append("(binary or empty patch)")
+                chunks.append("")
+            if len(files) < 100:
+                break
+            page += 1
+        if not chunks:
+            raise httpx.HTTPStatusError(
+                "PR files returned no patches",
+                request=response.request,
+                response=response,
+            )
+        return "\n".join(chunks)
+
     def create_issue_comment(self, full_name: str, number: int, body: str) -> dict:
-        """Post a comment on a PR (issues API)."""
+        """Post a comment on a PR (issues comments API). Needs Pull requests: Write."""
         response = self._client.post(
             f"/repos/{full_name}/issues/{number}/comments",
             json={"body": body},

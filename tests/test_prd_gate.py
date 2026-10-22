@@ -279,9 +279,25 @@ def test_in_progress_still_runs_when_not_prior_ready():
         prd_text=THIN_BUG,
         trigger="in_progress",
         prior_ready=False,
+        prior_comment=False,
     )
     assert not result.skipped
     assert result.verdict == "Needs work"
+
+
+def test_in_progress_dedupe_when_prior_needs_work_comment():
+    """SX-4820-style double-nag: To Do already commented → IP must stay quiet."""
+    result = evaluate_prd_gate(
+        ticket_key="SX-4820",
+        issue_type="Task",
+        status="In Progress",
+        prd_text=THIN_TASK,
+        trigger="in_progress",
+        prior_ready=False,
+        prior_comment=True,
+    )
+    assert result.skipped
+    assert "already exists" in result.skip_reason.lower()
 
 
 def test_to_do_dedupe_when_prior_comment_exists():
@@ -308,9 +324,9 @@ def test_format_report_mentions_soft_gate():
         prd_text=THIN_PRD,
     )
     text = format_prd_gate_report(result)
-    assert "Needs work" in text
-    assert "soft gate" in text.lower() or "Soft gate" in text
-    assert "backlog" in text.lower()
+    assert "before the developer starts" in text
+    assert "soft check" in text.lower()
+    assert "status was not changed" in text.lower()
 
 
 def test_format_jira_adf_and_slack():
@@ -325,9 +341,151 @@ def test_format_jira_adf_and_slack():
     adf = format_prd_gate_jira_adf(result)
     assert adf["type"] == "doc"
     assert any(n.get("type") == "heading" for n in adf["content"])
-    slack = format_prd_gate_slack(result)
-    assert "Ready" in slack
-    assert "status" in slack.lower() or "backlog" in slack.lower()
+    slack = format_prd_gate_slack(result, reporter="Sara", assignee="Unassigned")
+    assert "looks complete" in slack.lower()
+    assert "Sara" in slack
+
+
+def test_format_needs_work_human_gaps():
+    from provepr.prd_gate import format_prd_gate_jira_adf, format_prd_gate_slack
+
+    result = evaluate_prd_gate(
+        ticket_key="SX-4820",
+        issue_type="Task",
+        status="To Do",
+        prd_text=SX4820_STYLE_TASK,
+        trigger="to_do",
+    )
+    assert result.verdict == "Needs work"
+    report = format_prd_gate_report(result)
+    assert "Scope / out of scope" in report
+    assert "before the developer starts" in report
+    assert "MISSING" not in report
+
+    slack = format_prd_gate_slack(
+        result, reporter="Aqib", assignee="Unassigned"
+    )
+    assert "Hey, SX-4820" in slack
+    assert "Aqib" in slack
+    assert "Unassigned" in slack
+    assert "Trigger: To Do" in slack
+    assert "Your ticket" not in slack
+    assert "*Scope / out of scope*" in slack
+
+    adf = format_prd_gate_jira_adf(
+        result,
+        reporter_account_id="abc-123",
+        reporter_display_name="Aqib Khan",
+    )
+    headings = [
+        n["content"][0]["text"]
+        for n in adf["content"]
+        if n.get("type") == "heading"
+    ]
+    assert headings == ["KodiQA ticket check"]
+    # Greeting tags the reporter
+    greet = next(
+        n
+        for n in adf["content"]
+        if n.get("type") == "paragraph"
+        and any(p.get("type") == "mention" for p in n.get("content") or [])
+    )
+    mention = next(p for p in greet["content"] if p.get("type") == "mention")
+    assert mention["attrs"]["id"] == "abc-123"
+    assert mention["attrs"]["text"] == "@Aqib Khan"
+    # Bold gap name in bullet list
+    bullet = next(n for n in adf["content"] if n.get("type") == "bulletList")
+    first_para = bullet["content"][0]["content"][0]["content"]
+    assert first_para[0]["text"] == "Scope / out of scope"
+    assert first_para[0].get("marks") == [{"type": "strong"}]
+    assert "what is in and what is not" in first_para[1]["text"]
+
+
+def test_format_in_progress_warning_copy():
+    from provepr.prd_gate import format_prd_gate_jira_adf, format_prd_gate_slack
+
+    result = evaluate_prd_gate(
+        ticket_key="SX-4820",
+        issue_type="Task",
+        status="In Progress",
+        prd_text=SX4820_STYLE_TASK,
+        trigger="in_progress",
+    )
+    assert result.verdict == "Needs work"
+    report = format_prd_gate_report(result)
+    assert "notified earlier" in report.lower()
+    assert "moved to In Progress" in report
+    assert "exactly as required" in report.lower() or "matches what we need" in report
+
+    slack = format_prd_gate_slack(result, reporter="Aqib", assignee="Dev")
+    assert "In Progress but still has quality gaps" in slack
+    assert "Trigger: In Progress" in slack
+    assert "Warning comment" in slack
+
+    adf = format_prd_gate_jira_adf(result)
+    intro = next(
+        n["content"][0]["text"]
+        for n in adf["content"]
+        if n.get("type") == "paragraph"
+        and n["content"]
+        and "notified earlier" in n["content"][0].get("text", "").lower()
+    )
+    assert "In Progress" in intro
+
+
+SX4820_STYLE_TASK = """
+Summary: Warn when a document-management file is already on the survey
+
+What
+When adding files to an existing survey, selecting a document-management file that is already linked looks like a failed upload: the add endpoint treats it as already linked and creates no new row, and the UI still marks the job complete.
+
+Uploading the same set from the computer still works, because that creates a new file.
+
+Done
+In add-files mode, document-management files already on this survey stay visible, are not selectable, and show Already on this survey.
+
+If the user submits and the add response marks a file already_linked, show a warning instead of a success state. New files in the same submit are still added, and the warning names the ones that were already linked.
+
+A computer upload of a new copy is unchanged.
+
+Depends on
+Existing survey add-files flow (POST /api/v2/site-surveys/{id}/files/) and the document-management picker in the add-files modal. No API change.
+"""
+
+
+def test_sx4820_synonym_headings_recognized():
+    """What→Goal, Done→Done when; Scope still missing; Depends on is not Scope."""
+    result = evaluate_prd_gate(
+        ticket_key="SX-4820",
+        issue_type="Task",
+        status="To Do",
+        prd_text=SX4820_STYLE_TASK,
+    )
+    by_name = {s.name: s.present for s in result.mandatory}
+    assert by_name["Goal"] is True
+    assert by_name["Done when"] is True
+    assert by_name["Scope / out of scope"] is False
+    assert result.verdict == "Needs work"
+    assert result.present_count == 2
+    assert result.mandatory_total == 3
+
+
+def test_task_empty_what_heading_does_not_count():
+    thin = "What\n\nDone\n\nScope\n\n"
+    mandatory, _ = score_task_text(thin)
+    assert all(not s.present for s in mandatory)
+
+
+def test_task_what_in_prose_without_heading_does_not_fake_goal():
+    """Ambiguous 'what' in a sentence must not satisfy Goal."""
+    prose = (
+        "When adding files, check what is already linked before upload. "
+        "Also make sure done work is visible somehow."
+    )
+    mandatory, _ = score_task_text(prose)
+    by_name = {s.name: s.present for s in mandatory}
+    assert by_name["Goal"] is False
+    assert by_name["Done when"] is False
 
 
 def test_score_task_text_helpers():
@@ -415,14 +573,123 @@ def test_format_feature_labels():
         issue_type="Feature",
         status="To Do",
         prd_text=THIN_FEATURE,
+        trigger="in_progress",
     )
-    assert "Feature quality gate" in format_prd_gate_report(feature)
-    slack = format_prd_gate_slack(feature)
-    assert "Feature gate" in slack
+    report = format_prd_gate_report(feature)
+    assert "KodiQA ticket check" in report
+    assert "Feature" in report or "SIFU-10" in report
+    slack = format_prd_gate_slack(
+        feature, reporter="PM", assignee="Dev"
+    )
+    assert "SIFU-10" in slack
+    assert "(Feature)" in slack
+    assert "Trigger: In Progress" in slack
+    assert "PM" in slack
     adf = format_prd_gate_jira_adf(feature)
     headings = [
         n["content"][0]["text"]
         for n in adf["content"]
         if n.get("type") == "heading"
     ]
-    assert any("Feature" in h for h in headings)
+    assert headings == ["KodiQA ticket check"]
+
+
+def test_execute_prd_gate_silent_when_ready(monkeypatch):
+    """Ready tickets must not comment or Slack — gaps only."""
+    from provepr import prd_gate_cli as cli
+
+    class FakeJira:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get_issue(self, key):
+            return {
+                "key": key,
+                "fields": {
+                    "issuetype": {"name": "Story"},
+                    "status": {"name": "To Do"},
+                    "summary": "rich",
+                    "description": RICH_PRD,
+                    "reporter": {"emailAddress": "pm@example.com", "displayName": "PM"},
+                },
+            }
+
+        def get_subtasks(self, key):
+            return []
+
+        def list_comments(self, key):
+            return []
+
+        def add_comment(self, key, body):
+            raise AssertionError("Ready tickets must not post Jira comments")
+
+    monkeypatch.setattr(cli, "require_jira_settings", lambda: object())
+    monkeypatch.setattr(cli, "JiraClient", lambda *_a, **_k: FakeJira())
+    monkeypatch.setattr(
+        cli,
+        "notify_slack",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            AssertionError("Ready tickets must not Slack")
+        ),
+    )
+    monkeypatch.setattr(
+        cli, "build_prd_with_subtasks", lambda issue, subtasks: RICH_PRD
+    )
+
+    run = cli.execute_prd_gate(ticket="SX-1", comment=True, notify=True)
+    assert run.result.verdict == "Ready"
+    assert run.jira_comment_url is None
+
+
+def test_execute_prd_gate_comments_when_needs_work(monkeypatch):
+    from provepr import prd_gate_cli as cli
+
+    posted = {}
+
+    class FakeJira:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get_issue(self, key):
+            return {
+                "key": key,
+                "fields": {
+                    "issuetype": {"name": "Story"},
+                    "status": {"name": "To Do"},
+                    "summary": "thin",
+                    "description": THIN_PRD,
+                    "reporter": {"emailAddress": "pm@example.com", "displayName": "PM"},
+                },
+            }
+
+        def get_subtasks(self, key):
+            return []
+
+        def list_comments(self, key):
+            return []
+
+        def add_comment(self, key, body):
+            posted["key"] = key
+            return {"self": "http://jira/comment/1"}
+
+    monkeypatch.setattr(cli, "require_jira_settings", lambda: object())
+    monkeypatch.setattr(cli, "JiraClient", lambda *_a, **_k: FakeJira())
+    monkeypatch.setattr(
+        cli,
+        "notify_slack",
+        lambda text, kind="pm": type("S", (), {"detail": "Slack OK: DM"})(),
+    )
+    monkeypatch.setattr(
+        cli, "build_prd_with_subtasks", lambda issue, subtasks: THIN_PRD
+    )
+
+    run = cli.execute_prd_gate(ticket="SX-2", comment=True, notify=True)
+    assert run.result.verdict == "Needs work"
+    assert posted["key"] == "SX-2"
+    assert run.jira_comment_url == "http://jira/comment/1"
